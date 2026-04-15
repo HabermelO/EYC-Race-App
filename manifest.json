@@ -1,0 +1,17 @@
+{
+  "name": "EYC Race Officer 2026",
+  "short_name": "EYC Race",
+  "description": "Official Race Management Tool for Essex Yacht Club",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1e1e1c",
+  "theme_color": "#185fa5",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/google/material-design-icons/master/png/action/timer/res/mipmap-xxxhdpi/ic_timer_black_48dp.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
