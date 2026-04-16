@@ -1,22 +1,25 @@
 {
   "name": "EYC Racing App",
   "short_name": "EYC Racing",
-  "description": "Essex Yacht Club Race Officer App",
+  "description": "Essex Yacht Club Race Officer App — Portsmouth Yardstick 2026",
   "start_url": "./sailing_race_officer.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#c0122b",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "eyc_flag.png",
+      "src": "./eyc_flag.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "eyc_flag.png",
+      "src": "./eyc_flag.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
