@@ -1,24 +1,15 @@
-const CACHE_NAME = 'eyc-race-v1';
-const ASSETS = [
-  './index.html',
-  './manifest.json',
-  './'
+const CACHE = 'eyc-racing-v1';
+const FILES = [
+  './',
+  './sailing_race_officer.html'
 ];
 
-// Install the service worker and cache the files
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    })
-  );
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
 });
 
-// Serve from cache if offline, otherwise fetch from network
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request))
   );
 });
