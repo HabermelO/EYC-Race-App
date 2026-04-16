@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EYC Racing App</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#185fa5">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -454,7 +452,7 @@ window.undoLast=()=>{
   // Save current state to redo stack before reverting
   S.redoHistory.push({type:h.type,id:h.id,laps:c.laps,finishTime:c.finishTime,lapTimes:[...c.lapTimes],status:c.status});
   c.laps=h.laps;c.finishTime=h.finishTime;c.lapTimes=h.lapTimes;c.status=h.status;
-  saveState();renderRaceList();
+  saveState();renderRaceList();updateUndoButtons();
 };
 window.redoLast=()=>{
   if(!S.redoHistory.length)return;
@@ -464,8 +462,15 @@ window.redoLast=()=>{
   // Save current state back to undo stack
   S.actionHistory.push({type:h.type,id:h.id,laps:c.laps,finishTime:c.finishTime,lapTimes:[...c.lapTimes],status:c.status});
   c.laps=h.laps;c.finishTime=h.finishTime;c.lapTimes=h.lapTimes;c.status=h.status;
-  saveState();renderRaceList();
+  saveState();renderRaceList();updateUndoButtons();
 };
+// Update just the undo/redo button states without re-rendering the whole page
+function updateUndoButtons(){
+  const u=document.getElementById('undo-btn');
+  const r=document.getElementById('redo-btn');
+  if(u){u.disabled=S.actionHistory.length===0;}
+  if(r){r.disabled=S.redoHistory.length===0;}
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CSV DOWNLOAD
@@ -565,7 +570,7 @@ window.recLap=id=>{
   if(!c||c.status==='ocs'||c.status==='ret')return;
   pushHistory('lap',id);
   c.laps++;c.lapTimes.push(S.elapsed);
-  saveState();renderRaceList();
+  saveState();renderRaceList();updateUndoButtons();
 };
 window.recFinish=id=>{
   if(S.status!=='running')return;
@@ -573,7 +578,7 @@ window.recFinish=id=>{
   if(!c||c.finishTime!==null||c.status==='ocs'||c.status==='ret')return;
   pushHistory('finish',id);
   c.finishTime=S.elapsed;c.laps++;c.lapTimes.push(S.elapsed);
-  saveState();renderRaceList();
+  saveState();renderRaceList();updateUndoButtons();
 };
 window.onCC=v=>{S.classIdx=parseInt(v);S.pyInput=CLASSES[S.classIdx].py;render();};
 window.onPY=v=>S.pyInput=v;
@@ -717,11 +722,11 @@ function render(){
         ${running?`<button class="btn-red" onclick="endRace()" style="padding:11px 28px;font-size:15px;font-weight:600;">End race</button><button onclick="resetRace()" style="padding:11px 16px;">Reset</button>`:''}
         ${finished?`<button class="btn-green" onclick="setRaceTab('results')" style="padding:11px 28px;font-size:15px;font-weight:600;">View results &rarr;</button><button onclick="resetRace()" style="padding:11px 16px;">Reset</button>`:''}
       </div>
-      <!-- Undo + Redo + Add mid-race -->
+      <!-- Undo + Redo + Add mid-race — shown during race AND after finish -->
       ${(running||finished)?`
       <div style="margin-top:1rem;border-top:.5px solid var(--border);padding-top:1rem;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
-        <button onclick="undoLast()" class="btn-purple" style="padding:8px 16px;font-size:12px;" ${S.actionHistory.length===0?'disabled':''}>&#8630; Undo</button>
-        <button onclick="redoLast()" class="btn-purple" style="padding:8px 16px;font-size:12px;opacity:${S.redoHistory.length===0?'0.4':'1'};" ${S.redoHistory.length===0?'disabled':''}>&#8631; Redo</button>
+        <button id="undo-btn" onclick="undoLast()" class="btn-purple" style="padding:8px 16px;font-size:12px;" ${S.actionHistory.length===0?'disabled':''}>&#8630; Undo</button>
+        <button id="redo-btn" onclick="redoLast()" class="btn-purple" style="padding:8px 16px;font-size:12px;" ${S.redoHistory.length===0?'disabled':''}>&#8631; Redo</button>
         ${running&&!S.showLateAdd?`<button onclick="toggleLateAdd()" class="btn-amber" style="padding:8px 16px;font-size:12px;">+ Add competitor</button>`:''}
       </div>`:''}
       <!-- Late add panel -->
@@ -934,15 +939,6 @@ function render(){
 }
 
 render();
-
-// SERVICE WORKER REGISTRATION
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker Registered'))
-      .catch(err => console.log('Service Worker Failed', err));
-  });
-}
 </script>
 </body>
 </html>
