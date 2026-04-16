@@ -6,7 +6,7 @@ const CACHE_NAME = 'eyc-racing-v1';
 
 const FILES_TO_CACHE = [
   './',
-  './sailing_race_officer.html',
+  './index.html',
   './manifest.json',
   './eyc_flag.png'
 ];
