@@ -2,7 +2,7 @@
   "name": "EYC Racing App",
   "short_name": "EYC Racing",
   "description": "Essex Yacht Club Race Officer App — Portsmouth Yardstick 2026",
-  "start_url": "./sailing_race_officer.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
