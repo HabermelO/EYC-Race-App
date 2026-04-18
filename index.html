@@ -183,7 +183,7 @@ const PROG=[
   {d:"2026-04-03",lbl:"Fri 3 Apr",hw:"14:24",ht:5.78,tender:false,events:"Easter 1 & 2 (Good Friday)",starts:"All-in 13:15",loc:"LSC"},
   {d:"2026-04-04",lbl:"Sat 4 Apr",hw:"14:55",ht:5.77,tender:false,events:"Easter 3 & 4",starts:"All-in 13:45",loc:"EYC"},
   {d:"2026-04-12",lbl:"Sun 12 Apr",hw:"08:48",ht:4.42,tender:true,events:"EODs Launch",starts:"",loc:"EYC"},
-  {d:"2026-04-18",lbl:"Sat 18 Apr",hw:"14:02",ht:6.01,tender:false,events:"Spring 1 & 2 · Oppie racing",starts:"All-in 12:45 · Solo 12:50 ·  Oppie 13:00",loc:"LSC/EYC"},
+  {d:"2026-04-18",lbl:"Sat 18 Apr",hw:"14:02",ht:6.01,tender:false,events:"Spring 1 & 2 · Oppie racing",starts:"All-in 12:45 · Solo 12:50 · Oppie 13:00",loc:"LSC/EYC"},
   {d:"2026-04-19",lbl:"Sun 19 Apr",hw:"14:43",ht:6.02,tender:false,events:"Spring 3 & 4 · Turmaine Trophy",starts:"All-in 13:15 · Solo 13:20 · EOD 13:25",loc:"EYC"},
   {d:"2026-04-24",lbl:"Fri 24 Apr",hw:"18:54",ht:4.81,tender:false,events:"Sailing Together with LSC",starts:"",loc:"Leigh Beach"},
   {d:"2026-05-02",lbl:"Sat 2 May",hw:"13:54",ht:5.65,tender:true,events:"Bank Holiday 1 & 2 · Tony Moore (EOD) · Oppie racing",starts:"All-in/EOD 12:30 · Solo 12:35 · Oppie 13:00",loc:"LSC/EYC"},
@@ -312,7 +312,7 @@ function loadState(){
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 let S={
-  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',
+  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',wxData:null,wxLoading:false,wxError:null,wxFetched:0,
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
   showLateAdd:false,shortenedCourse:false,
@@ -636,6 +636,173 @@ function renderRaceList(){
 
 function monthName(d){return['January','February','March','April','May','June','July','August','September','October','November','December'][new Date(d+'T12:00:00').getMonth()];}
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEATHER — Open-Meteo, Chalkwell Beach (51.5369, 0.6767)
+// ─────────────────────────────────────────────────────────────────────────────
+const WX_LAT=51.5369, WX_LON=0.6767;
+const WX_URL='https://api.open-meteo.com/v1/forecast'
+  +'?latitude='+WX_LAT+'&longitude='+WX_LON
+  +'&hourly=windspeed_10m,winddirection_10m,precipitation,weathercode'
+  +'&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max,winddirection_10m_dominant,precipitation_sum,sunrise,sunset'
+  +'&windspeed_unit=kn&timezone=Europe%2FLondon&forecast_days=4';
+
+function beaufort(kn){
+  if(kn<1)return{n:0,d:'Calm'};
+  if(kn<4)return{n:1,d:'Light air'};
+  if(kn<7)return{n:2,d:'Light breeze'};
+  if(kn<11)return{n:3,d:'Gentle breeze'};
+  if(kn<16)return{n:4,d:'Moderate breeze'};
+  if(kn<22)return{n:5,d:'Fresh breeze'};
+  if(kn<28)return{n:6,d:'Strong breeze'};
+  if(kn<34)return{n:7,d:'Near gale'};
+  if(kn<41)return{n:8,d:'Gale'};
+  return{n:9,d:'Severe gale'};
+}
+function compass(deg){
+  const dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg/22.5)%16];
+}
+function wxIcon(code){
+  if(code===0)return'☀️';
+  if(code<=2)return'🌤️';
+  if(code<=3)return'☁️';
+  if(code<=49)return'🌫️';
+  if(code<=59)return'🌦️';
+  if(code<=69)return'🌧️';
+  if(code<=79)return'🌨️';
+  if(code<=84)return'🌧️';
+  if(code<=99)return'⛈️';
+  return'🌥️';
+}
+function wxDesc(code){
+  if(code===0)return'Clear sky';
+  if(code===1)return'Mainly clear';
+  if(code===2)return'Partly cloudy';
+  if(code===3)return'Overcast';
+  if(code<=49)return'Fog';
+  if(code<=59)return'Drizzle';
+  if(code<=69)return'Rain';
+  if(code<=79)return'Snow';
+  if(code<=84)return'Rain showers';
+  if(code<=99)return'Thunderstorm';
+  return'Mixed';
+}
+function fmtTime(iso){
+  if(!iso)return'';
+  const d=new Date(iso);
+  return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtDayLabel(iso){
+  const d=new Date(iso+'T12:00:00');
+  const today=new Date();today.setHours(0,0,0,0);
+  const diff=Math.round((d-today)/86400000);
+  if(diff===0)return'Today';
+  if(diff===1)return'Tomorrow';
+  return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+}
+
+async function fetchWeather(){
+  // Only re-fetch if older than 30 minutes
+  if(S.wxData&&Date.now()-S.wxFetched<1800000){render();return;}
+  S.wxLoading=true;S.wxError=null;render();
+  try{
+    const res=await fetch(WX_URL);
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    S.wxData=await res.json();
+    S.wxFetched=Date.now();
+    S.wxLoading=false;
+  }catch(e){
+    S.wxLoading=false;
+    S.wxError='Unable to fetch forecast. Check your connection and try again.';
+  }
+  render();
+}
+
+function renderWeatherSection(){
+  if(S.wxLoading)return`
+    <div style="text-align:center;padding:3rem 1rem;color:var(--txt2);">
+      <div style="font-size:32px;margin-bottom:12px;">🌊</div>
+      <div style="font-size:14px;">Fetching forecast…</div>
+    </div>`;
+  if(S.wxError)return`
+    <div style="padding:14px;background:var(--red-bg);border:.5px solid var(--red-bd);border-radius:var(--radius);color:var(--red-txt);font-size:13px;margin-bottom:1rem;">${S.wxError}</div>
+    <div style="text-align:center;"><button onclick="fetchWeather()" style="padding:10px 24px;">&#8635; Retry</button></div>`;
+  if(!S.wxData)return`
+    <div style="text-align:center;padding:3rem 1rem;">
+      <div style="font-size:48px;margin-bottom:12px;">⛵</div>
+      <div style="font-size:14px;color:var(--txt2);margin-bottom:1.5rem;">3-day marine forecast for Chalkwell Beach</div>
+      <button class="btn-blue" onclick="fetchWeather()" style="padding:12px 32px;font-size:15px;font-weight:600;">Load forecast</button>
+    </div>`;
+
+  const d=S.wxData.daily;
+  const days=d.time.slice(0,4); // today + 3 days
+  const fetched=new Date(S.wxFetched).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  const cards=days.map((date,i)=>{
+    const kn=Math.round(d.windspeed_10m_max[i]);
+    const bf=beaufort(kn);
+    const dir=compass(d.winddirection_10m_dominant[i]);
+    const rain=d.precipitation_sum[i];
+    const code=d.weathercode[i];
+    const tMax=Math.round(d.temperature_2m_max[i]);
+    const tMin=Math.round(d.temperature_2m_min[i]);
+    const sunrise=fmtTime(d.sunrise[i]);
+    const sunset=fmtTime(d.sunset[i]);
+    const label=fmtDayLabel(date);
+    const isToday=i===0;
+
+    // Sailing suitability colour
+    const bfn=bf.n;
+    const suitBg=bfn<=3?'var(--green-bg)':bfn<=5?'var(--amber-bg)':'var(--red-bg)';
+    const suitTxt=bfn<=3?'var(--green-txt)':bfn<=5?'var(--amber-txt)':'var(--red-txt)';
+    const suitBd=bfn<=3?'var(--green-bd)':bfn<=5?'var(--amber-bd)':'var(--red-bd)';
+    const suitLabel=bfn<=3?'Good sailing':bfn<=5?'Moderate':bfn>=7?'Dangerous':'Strong wind';
+
+    return`<div style="background:var(--bg);border:.5px solid ${isToday?'var(--blue-bd)':'var(--border)'};border-radius:var(--radius-lg);padding:1rem;margin-bottom:10px;${isToday?'border-width:1.5px;':''}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+        <div>
+          <div style="font-weight:700;font-size:16px;color:${isToday?'var(--blue-txt)':'var(--txt)'};">${label}</div>
+          <div style="font-size:12px;color:var(--txt2);margin-top:2px;">${wxIcon(code)} ${wxDesc(code)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:22px;font-weight:700;">${tMax}°<span style="font-size:14px;font-weight:400;color:var(--txt2);">/${tMin}°C</span></div>
+        </div>
+      </div>
+      <!-- Wind row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div style="background:${suitBg};border:.5px solid ${suitBd};border-radius:var(--radius);padding:8px 10px;text-align:center;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:${suitTxt};margin-bottom:3px;">Beaufort</div>
+          <div style="font-size:22px;font-weight:800;color:${suitTxt};">${bfn}</div>
+          <div style="font-size:11px;color:${suitTxt};">${bf.d}</div>
+        </div>
+        <div style="background:var(--bg2);border-radius:var(--radius);padding:8px 10px;text-align:center;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--txt2);margin-bottom:3px;">Wind</div>
+          <div style="font-size:18px;font-weight:700;">${kn}<span style="font-size:12px;font-weight:400;">kn</span></div>
+          <div style="font-size:11px;color:var(--txt2);">From ${dir}</div>
+        </div>
+        <div style="background:var(--bg2);border-radius:var(--radius);padding:8px 10px;text-align:center;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--txt2);margin-bottom:3px;">Rain</div>
+          <div style="font-size:18px;font-weight:700;">${rain.toFixed(1)}<span style="font-size:12px;font-weight:400;">mm</span></div>
+          <div style="font-size:11px;color:var(--txt2);">${rain<1?'Dry':rain<5?'Light':rain<15?'Moderate':'Heavy'}</div>
+        </div>
+      </div>
+      <!-- Suitability + sun -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+        <span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;background:${suitBg};color:${suitTxt};border:.5px solid ${suitBd};">${suitLabel}</span>
+        <span style="font-size:12px;color:var(--txt2);">🌅 ${sunrise} &nbsp; 🌇 ${sunset}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return`
+    ${cards}
+    <div style="padding:10px 14px;background:var(--bg2);border-radius:var(--radius);font-size:11px;color:var(--txt3);display:flex;justify-content:space-between;align-items:center;">
+      <span>Chalkwell Beach · Open-Meteo</span>
+      <span>Updated ${fetched} &nbsp;<button onclick="S.wxFetched=0;fetchWeather()" style="font-size:11px;padding:2px 8px;border-radius:99px;">&#8635;</button></span>
+    </div>`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN RENDER
 // ─────────────────────────────────────────────────────────────────────────────
@@ -668,6 +835,7 @@ function render(){
     <button class="main-tab ${S.mainTab==='race'?'active':''}" onclick="setMain('race')">&#9873; Race</button>
     <button class="main-tab ${S.mainTab==='calendar'?'active':''}" onclick="setMain('calendar')">&#128197; Calendar</button>
     <button class="main-tab ${S.mainTab==='courses'?'active':''}" onclick="setMain('courses')">&#127981; Courses</button>
+    <button class="main-tab ${S.mainTab==='weather'?'active':''}" onclick="setMain('weather')">&#9928; Weather</button>
   </div>
 
   <!-- ═══════ RACE SECTION ═══════ -->
@@ -934,15 +1102,16 @@ function render(){
   `:''}
 
   `:''}
-
-${S.mainTab==='weather'?`
-  <div style="margin-bottom:1rem;">
-    <div style="font-size:15px;font-weight:700;">3-Day Forecast</div>
-    <div style="font-size:12px;color:var(--txt2);">Chalkwell Beach, Essex</div>
+  ${S.mainTab==='weather'?`
+  <div style="margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div style="font-size:15px;font-weight:700;">3-Day Forecast</div>
+      <div style="font-size:12px;color:var(--txt2);">Chalkwell Beach, Essex</div>
+    </div>
+    ${S.wxData&&!S.wxLoading?'<span style="font-size:11px;color:var(--txt3);">Wind in knots &middot; Beaufort scale</span>':''}
   </div>
   ${renderWeatherSection()}
   `:''}
-  
   `;
 
 
