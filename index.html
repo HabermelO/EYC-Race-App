@@ -130,19 +130,19 @@ const CLASSES=[
 ];
 
 const MARKS=[
-  {abbr:"J",name:"Joscelyne",desc:"Joscelyne mark, off Joscelyne beach"},
-  {abbr:"W",name:"West",desc:"West mark, off Bell Wharf beach"},
-  {abbr:"R",name:"Ray",desc:"Ray mark"},
-  {abbr:"HR",name:"Half Ray",desc:"Half Ray mark"},
-  {abbr:"HRE",name:"Half Ray East",desc:"Half Ray East mark, opposite LYC start line"},
-  {abbr:"S",name:"South",desc:"South mark"},
+  {abbr:"J",name:"Joscelyne",desc:"East cardinal buoy, off Southend Pier end"},
+  {abbr:"W",name:"West",desc:"West Shoebury buoy"},
+  {abbr:"R",name:"Ray",desc:"Ray Sand channel mark"},
+  {abbr:"HR",name:"Half Ray",desc:"Half Ray buoy"},
+  {abbr:"HRE",name:"Half Ray East",desc:"Half Ray East buoy"},
+  {abbr:"S",name:"South",desc:"South Shoebury mark"},
   {abbr:"A",name:"Admirals",desc:"Admirals mark"},
   {abbr:"C",name:"Crowstone",desc:"Crowstone mark"},
   {abbr:"CO",name:"Crowstone Outfall",desc:"Crowstone Outfall mark"},
   {abbr:"ME",name:"Marsh End",desc:"Marsh End buoy — junction of Ray Gut"},
-  {abbr:"RS",name:"Ray Sands",desc:"Ray Sands mark"},
-  {abbr:"DM",name:"Distance Mark",desc:"Distance Mark — finishing/turning mark found inshore at the starting line"},
-  {abbr:"OLM",name:"Outer Limit Mark",desc:"Outer limit mark for start"},
+  {abbr:"RS",name:"Ray Sands",desc:"Ray Sands outer mark"},
+  {abbr:"DM",name:"Distance Mark",desc:"Down Mark — finishing/turning mark set by race officer on the day"},
+  {abbr:"OLM",name:"Offshore Limit Mark",desc:"Offshore limit mark set by race officer"},
 ];
 
 const COURSES=[
@@ -183,7 +183,7 @@ const PROG=[
   {d:"2026-04-03",lbl:"Fri 3 Apr",hw:"14:24",ht:5.78,tender:false,events:"Easter 1 & 2 (Good Friday)",starts:"All-in 13:15",loc:"LSC"},
   {d:"2026-04-04",lbl:"Sat 4 Apr",hw:"14:55",ht:5.77,tender:false,events:"Easter 3 & 4",starts:"All-in 13:45",loc:"EYC"},
   {d:"2026-04-12",lbl:"Sun 12 Apr",hw:"08:48",ht:4.42,tender:true,events:"EODs Launch",starts:"",loc:"EYC"},
-  {d:"2026-04-18",lbl:"Sat 18 Apr",hw:"14:02",ht:6.01,tender:false,events:"Spring 1 & 2 · Oppie racing",starts:"All-in 12:45 · Solo 12:50 · Oppie 13:00",loc:"LSC/EYC"},
+  {d:"2026-04-18",lbl:"Sat 18 Apr",hw:"14:02",ht:6.01,tender:false,events:"Spring 1 & 2 · Oppie racing",starts:"All-in 12:45 · Solo 12:50 · EOD 13:00 · Oppie 13:00",loc:"LSC/EYC"},
   {d:"2026-04-19",lbl:"Sun 19 Apr",hw:"14:43",ht:6.02,tender:false,events:"Spring 3 & 4 · Turmaine Trophy",starts:"All-in 13:15 · Solo 13:20 · EOD 13:25",loc:"EYC"},
   {d:"2026-04-24",lbl:"Fri 24 Apr",hw:"18:54",ht:4.81,tender:false,events:"Sailing Together with LSC",starts:"",loc:"Leigh Beach"},
   {d:"2026-05-02",lbl:"Sat 2 May",hw:"13:54",ht:5.65,tender:true,events:"Bank Holiday 1 & 2 · Tony Moore (EOD) · Oppie racing",starts:"All-in/EOD 12:30 · Solo 12:35 · Oppie 13:00",loc:"LSC/EYC"},
@@ -282,7 +282,7 @@ function saveState(){
       nextId:S.nextId,showLateAdd:S.showLateAdd,shortenedCourse:S.shortenedCourse,
       lateSailInput:S.lateSailInput,lateClassIdx:S.lateClassIdx,
       latePyInput:S.latePyInput,lateCustomName:S.lateCustomName,
-      actionHistory:S.actionHistory,redoHistory:S.redoHistory
+      actionHistory:S.actionHistory,redoHistory:S.redoHistory,raceNotes:S.raceNotes
     }));
     const pill=document.getElementById('save-pill');
     if(pill){pill.style.opacity='1';clearTimeout(savePillTimer);savePillTimer=setTimeout(()=>{pill.style.opacity='0';},1500);}
@@ -303,6 +303,7 @@ function loadState(){
     S.latePyInput=sn.latePyInput||1103;S.lateCustomName=sn.lateCustomName||'';
     S.actionHistory=sn.actionHistory||[];
     S.redoHistory=sn.redoHistory||[];
+    S.raceNotes=sn.raceNotes||'';
     if(S.status==='running'&&S.startTime)S.elapsed=Date.now()-S.startTime;
     if(S.status==='sequence'&&S.startTime)S.elapsed=Date.now()-S.startTime;
   }catch(e){}
@@ -318,7 +319,8 @@ let S={
   showLateAdd:false,shortenedCourse:false,
   lateSailInput:'',lateClassIdx:0,latePyInput:1103,lateCustomName:'',
   actionHistory:[],   // [{type,id,lap,finishTime,lapTimes,status}]
-  redoHistory:[]      // mirror stack for redo
+  redoHistory:[],     // mirror stack for redo
+  raceNotes:''        // free-text notes saved per race session
 };
 loadState();
 
@@ -485,7 +487,7 @@ function updateUndoButtons(){
 window.downloadCSV=()=>{
   const results=getResults();
   if(!results.length){alert('No results to export yet.');return;}
-  const rows=[['Position','Sail Number','Boat Class','PY Number','Laps','Lap Times','Elapsed Time','Corrected Time','Status']];
+  const rows=[['Position','Sail Number','Boat Class','PY Number','Laps','Lap Times','Elapsed Time','Corrected Time','Status'],['Race Notes:',S.raceNotes||'','','','','','','','']];
   results.forEach((c,i)=>{
     const splits=lapSplits(c).map(s=>`${s.lbl}: ${fmtSplit(s.dur)}`).join(' | ');
     const status=c.dnf?'DNF':(c.status||'Finished');
@@ -549,7 +551,7 @@ window.startSequence=()=>{
   S.startTime=Date.now()+305000; // race gun 5m05s ahead (gives a few seconds of lead-in)
   S.elapsed=-(S.startTime-Date.now());
   S.comps.forEach(c=>{c.laps=0;c.finishTime=null;c.lapTimes=[];c.status='ok';c.addedLate=false;});
-  S.actionHistory=[];S.redoHistory=[];S.showLateAdd=false;
+  S.actionHistory=[];S.redoHistory=[];S.raceNotes='';S.showLateAdd=false;
   clearInterval(S.timerRef);
   S.timerRef=setInterval(seqTick,100);
   saveState();render();
@@ -557,7 +559,7 @@ window.startSequence=()=>{
 window.instantStart=()=>{
   S.status='running';S.startTime=Date.now();S.elapsed=0;S.showLateAdd=false;
   S.comps.forEach(c=>{c.laps=0;c.finishTime=null;c.lapTimes=[];c.status='ok';c.addedLate=false;});
-  S.actionHistory=[];S.redoHistory=[];
+  S.actionHistory=[];S.redoHistory=[];S.raceNotes='';
   clearInterval(S.timerRef);
   S.timerRef=setInterval(seqTick,100);
   saveState();render();
@@ -592,6 +594,7 @@ window.onPY=v=>S.pyInput=v;
 window.onSail=v=>S.sailInput=v;
 window.onCN=v=>S.customName=v;
 window.onSK=e=>{if(e.key==='Enter')addComp();};
+window.onNotes=v=>{S.raceNotes=v;saveState();};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RENDER: RACE LIST
@@ -976,6 +979,16 @@ function render(){
       </div>`).join('')}
     </div>`:''}
     <div style="padding:10px 14px;background:var(--bg2);border-radius:var(--radius);font-size:12px;color:var(--txt2);">Corrected time = elapsed &times; 1000 &divide; PY &nbsp;&middot;&nbsp; Lower = better &nbsp;&middot;&nbsp; RYA PY 2026</div>`}
+    <!-- Race notes — always visible in results tab -->
+    <div class="card" style="margin-top:1rem;">
+      <label class="lbl" style="margin-bottom:6px;">&#128221; Race notes</label>
+      <textarea
+        oninput="onNotes(this.value)"
+        placeholder="Course number, wind direction, number of starters, incidents, protests…"
+        style="width:100%;min-height:100px;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--txt);outline:none;line-height:1.5;"
+      >${S.raceNotes}</textarea>
+      <div style="font-size:11px;color:var(--txt3);margin-top:5px;">Auto-saved · Cleared when race is reset</div>
+    </div>
   `:''}
 
   <!-- FLAG GUIDE -->
