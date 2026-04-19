@@ -694,11 +694,12 @@ function fmtTime(iso){
   return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
 function fmtDayLabel(iso){
+  const todayStr=new Date().toLocaleDateString('en-CA'); // gives YYYY-MM-DD
+  const tomorrowDate=new Date();tomorrowDate.setDate(tomorrowDate.getDate()+1);
+  const tomorrowStr=tomorrowDate.toLocaleDateString('en-CA');
+  if(iso===todayStr)return'Today';
+  if(iso===tomorrowStr)return'Tomorrow';
   const d=new Date(iso+'T12:00:00');
-  const today=new Date();today.setHours(0,0,0,0);
-  const diff=Math.round((d-today)/86400000);
-  if(diff===0)return'Today';
-  if(diff===1)return'Today';
   return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 }
 
