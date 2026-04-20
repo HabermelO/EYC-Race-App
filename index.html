@@ -183,7 +183,7 @@ const PROG=[
   {d:"2026-04-03",lbl:"Fri 3 Apr",hw:"14:24",ht:5.78,tender:false,events:"Easter 1 & 2 (Good Friday)",starts:"All-in 13:15",loc:"LSC"},
   {d:"2026-04-04",lbl:"Sat 4 Apr",hw:"14:55",ht:5.77,tender:false,events:"Easter 3 & 4",starts:"All-in 13:45",loc:"EYC"},
   {d:"2026-04-12",lbl:"Sun 12 Apr",hw:"08:48",ht:4.42,tender:true,events:"EODs Launch",starts:"",loc:"EYC"},
-  {d:"2026-04-18",lbl:"Sat 18 Apr",hw:"14:02",ht:6.01,tender:false,events:"Spring 1 & 2 · Oppie racing",starts:"All-in 12:45 · Solo 12:50 · EOD 13:00 · Oppie 13:00",loc:"LSC/EYC"},
+  {d:"2026-04-18",lbl:"Sat 18 Apr",hw:"14:02",ht:6.01,tender:false,events:"Spring 1 & 2 · Oppie racing",starts:"All-in 12:45 · Solo 12:50 · Oppie 13:00",loc:"LSC/EYC"},
   {d:"2026-04-19",lbl:"Sun 19 Apr",hw:"14:43",ht:6.02,tender:false,events:"Spring 3 & 4 · Turmaine Trophy",starts:"All-in 13:15 · Solo 13:20 · EOD 13:25",loc:"EYC"},
   {d:"2026-04-24",lbl:"Fri 24 Apr",hw:"18:54",ht:4.81,tender:false,events:"Sailing Together with LSC",starts:"",loc:"Leigh Beach"},
   {d:"2026-05-02",lbl:"Sat 2 May",hw:"13:54",ht:5.65,tender:true,events:"Bank Holiday 1 & 2 · Tony Moore (EOD) · Oppie racing",starts:"All-in/EOD 12:30 · Solo 12:35 · Oppie 13:00",loc:"LSC/EYC"},
@@ -324,6 +324,18 @@ let S={
 };
 loadState();
 
+
+// SCREEN WAKE LOCK
+let wakeLock=null;
+async function requestWakeLock(){
+  try{if('wakeLock' in navigator){wakeLock=await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release',()=>{wakeLock=null;});}}
+  catch(err){console.log('Wake lock:',err);}
+}
+function releaseWakeLock(){if(wakeLock){wakeLock.release();wakeLock=null;}}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&(S.status==='running'||S.status==='sequence'))requestWakeLock();
+});
 // ─────────────────────────────────────────────────────────────────────────────
 // AUDIO (for starting sequence beeps)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -484,6 +496,33 @@ function updateUndoButtons(){
 // ─────────────────────────────────────────────────────────────────────────────
 // CSV DOWNLOAD
 // ─────────────────────────────────────────────────────────────────────────────
+
+// WEB SHARE
+window.shareResults=async()=>{
+  const results=getResults();
+  if(!results.length){alert('No results to share yet.');return;}
+  const date=new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  let text='\u26F5 EYC Race Results \u2014 '+date+'\n';
+  if(S.raceNotes)text+='\uD83D\uDCCB '+S.raceNotes+'\n';
+  text+='\n';
+  results.forEach((c,i)=>{
+    const medal=i===0?'\uD83E\uDD47':i===1?'\uD83E\uDD48':i===2?'\uD83E\uDD49':'  ';
+    const corr=c.corr!==null?fmtRes(c.corr):'DNF';
+    text+=medal+' '+(i+1)+'. '+c.sail+' \u2014 '+c.name+' ('+corr+')\n';
+  });
+  const ocs=S.comps.filter(c=>c.status==='ocs');
+  const ret=S.comps.filter(c=>c.status==='ret');
+  if(ocs.length)text+='\nOCS: '+ocs.map(c=>c.sail).join(', ');
+  if(ret.length)text+='\nRET: '+ret.map(c=>c.sail).join(', ');
+  text+='\n\nProvisional results \u2014 subject to protest';
+  if(navigator.share){
+    try{await navigator.share({title:'EYC Race Results',text:text});}
+    catch(e){if(e.name!=='AbortError')alert('Share failed: '+e.message);}
+  } else {
+    try{await navigator.clipboard.writeText(text);alert('Copied to clipboard \u2014 paste into WhatsApp or Email');}
+    catch(e){alert('Sharing not supported on this browser');}
+  }
+};
 window.downloadCSV=()=>{
   const results=getResults();
   if(!results.length){alert('No results to export yet.');return;}
@@ -557,17 +596,17 @@ window.startSequence=()=>{
   saveState();render();
 };
 window.instantStart=()=>{
-  S.status='running';S.startTime=Date.now();S.elapsed=0;S.showLateAdd=false;
+  requestWakeLock();S.status='running';S.startTime=Date.now();S.elapsed=0;S.showLateAdd=false;
   S.comps.forEach(c=>{c.laps=0;c.finishTime=null;c.lapTimes=[];c.status='ok';c.addedLate=false;});
   S.actionHistory=[];S.redoHistory=[];S.raceNotes='';
   clearInterval(S.timerRef);
   S.timerRef=setInterval(seqTick,100);
   saveState();render();
 };
-window.endRace=()=>{S.status='finished';S.showLateAdd=false;clearInterval(S.timerRef);saveState();render();};
+window.endRace=()=>{S.status='finished';S.showLateAdd=false;clearInterval(S.timerRef);releaseWakeLock();saveState();render();};
 window.resetRace=()=>{
   if(!confirm('Reset race and clear all times?'))return;
-  clearInterval(S.timerRef);
+  clearInterval(S.timerRef);releaseWakeLock();
   S.status='idle';S.elapsed=0;S.startTime=null;S.showLateAdd=false;S.shortenedCourse=false;
   S.comps.forEach(c=>{c.laps=0;c.finishTime=null;c.lapTimes=[];c.status='ok';c.addedLate=false;});
   S.actionHistory=[];
@@ -579,6 +618,7 @@ window.recLap=id=>{
   if(!c||c.status==='ocs'||c.status==='ret')return;
   pushHistory('lap',id);
   c.laps++;c.lapTimes.push(S.elapsed);
+  if(navigator.vibrate)navigator.vibrate(50);
   saveState();renderRaceList();updateUndoButtons();
 };
 window.recFinish=id=>{
@@ -587,6 +627,7 @@ window.recFinish=id=>{
   if(!c||c.finishTime!==null||c.status==='ocs'||c.status==='ret')return;
   pushHistory('finish',id);
   c.finishTime=S.elapsed;c.laps++;c.lapTimes.push(S.elapsed);
+  if(navigator.vibrate)navigator.vibrate([50,30,100]);
   saveState();renderRaceList();updateUndoButtons();
 };
 window.onCC=v=>{S.classIdx=parseInt(v);S.pyInput=CLASSES[S.classIdx].py;render();};
@@ -697,9 +738,10 @@ function fmtTime(iso){
   return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
 function fmtDayLabel(iso){
-  const todayStr=new Date().toLocaleDateString('en-CA'); // gives YYYY-MM-DD
-  const tomorrowDate=new Date();tomorrowDate.setDate(tomorrowDate.getDate()+1);
-  const tomorrowStr=tomorrowDate.toLocaleDateString('en-CA');
+  // Compare ISO strings directly to avoid timezone shift bugs
+  const todayStr=new Date().toLocaleDateString('en-CA');
+  const tom=new Date();tom.setDate(tom.getDate()+1);
+  const tomorrowStr=tom.toLocaleDateString('en-CA');
   if(iso===todayStr)return'Today';
   if(iso===tomorrowStr)return'Tomorrow';
   const d=new Date(iso+'T12:00:00');
@@ -945,6 +987,7 @@ function render(){
     ${S.shortenedCourse?`<div style="padding:9px 14px;background:var(--purple-bg);border:.5px solid var(--purple-bd);border-radius:var(--radius);margin-bottom:1rem;font-size:13px;color:var(--purple-txt);">Shortened course active — scores normalised using average lap time &times; ${maxLaps} laps (the most completed by any boat)</div>`:''}
     ${S.status!=='idle'&&S.comps.some(c=>c.laps===0&&c.status==='ok')?`<div style="padding:9px 14px;background:var(--amber-bg);border:.5px solid var(--amber-bd);border-radius:var(--radius);margin-bottom:1rem;font-size:13px;color:var(--amber-txt);">Race ended early — ranked by laps completed then corrected time. Zero-lap boats excluded.</div>`:''}
     <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+      <button class="btn-blue" onclick="shareResults()" style="padding:8px 18px;font-size:13px;">&#8679; Share results</button>
       <button class="btn-teal" onclick="downloadCSV()" style="padding:8px 18px;font-size:13px;">&#8595; Download CSV</button>
     </div>
     <div class="card" style="padding:0;overflow:hidden;overflow-x:auto;margin-bottom:1rem;">
@@ -986,7 +1029,7 @@ function render(){
         oninput="onNotes(this.value)"
         placeholder="Course number, wind direction, number of starters, incidents, protests…"
         style="width:100%;min-height:100px;resize:vertical;font-family:inherit;font-size:13px;padding:10px;border:.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--txt);outline:none;line-height:1.5;"
-      >${S.raceNotes}</textarea>
+      ></textarea>
       <div style="font-size:11px;color:var(--txt3);margin-top:5px;">Auto-saved · Cleared when race is reset</div>
     </div>
   `:''}
@@ -1135,6 +1178,9 @@ function render(){
       S.timerRef=setInterval(seqTick,100);
     }
   }
+  // Set textarea values via DOM — more reliable on mobile than innerHTML injection
+  const notesTA=document.querySelector('textarea[oninput="onNotes(this.value)"]');
+  if(notesTA&&notesTA.value!==S.raceNotes)notesTA.value=S.raceNotes;
 }
 
 render();
