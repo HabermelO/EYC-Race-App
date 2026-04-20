@@ -313,7 +313,7 @@ function loadState(){
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 let S={
-  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',wxData:null,wxLoading:false,wxError:null,wxFetched:0,wxExpanded:{},
+  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',wxData:null,wxLoading:false,wxError:null,wxFetched:0,wxExpanded:{},calExpanded:{},
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
   showLateAdd:false,shortenedCourse:false,
@@ -549,6 +549,12 @@ window.downloadCSV=()=>{
 window.setMain=t=>{S.mainTab=t;saveState();if(t==='weather')fetchWeather();else render();};
 window.setRaceTab=t=>{S.raceTab=t;saveState();render();};
 window.setFilter=f=>{S.calFilter=f;saveState();render();};
+window.toggleCal=d=>{
+  S.calExpanded[d]=!S.calExpanded[d];
+  const panel=document.getElementById('cal-panel-'+d);
+  const chev=document.getElementById('cal-chev-'+d);
+  if(panel){const open=S.calExpanded[d];panel.style.maxHeight=open?panel.scrollHeight+'px':'0';panel.style.opacity=open?'1':'0';if(chev)chev.style.transform=open?'rotate(180deg)':'rotate(0deg)';}
+};
 window.setCourseTab=t=>{S.courseTab=t;saveState();render();};
 window.toggleShortenedCourse=()=>{S.shortenedCourse=!S.shortenedCourse;saveState();render();};
 
@@ -676,6 +682,40 @@ function renderRaceList(){
         :c.finishTime!==null?`<span class="mono" style="font-size:12px;color:var(--green-txt);flex-shrink:0;">${fmtTimer(c.finishTime)} &#10003;</span>`
         :`<span style="font-size:11px;color:var(--txt3);flex-shrink:0;">${c.status.toUpperCase()}</span>`}
     </div>`;}).join('');
+}
+
+
+// Get hourly weather snapshot for a specific date+time from cached wxData
+function getCalWeather(dateStr, startTimeStr){
+  if(!S.wxData||!S.wxData.hourly)return null;
+  const today=new Date().toLocaleDateString('en-CA');
+  const raceDate=new Date(dateStr+'T12:00:00');
+  const todayDate=new Date(today+'T00:00:00');
+  const diffDays=Math.round((raceDate-todayDate)/86400000);
+  if(diffDays>4)return{tooFar:true};
+  if(diffDays<0)return null; // past
+  // Find best hourly match
+  const h=S.wxData.hourly;
+  // Parse start time - take first HH:MM from starts string
+  let targetHr=12; // default midday
+  if(startTimeStr){
+    const m=startTimeStr.match(/(\d{1,2}):(\d{2})/);
+    if(m)targetHr=parseInt(m[1]);
+  }
+  // Find index of matching hour
+  const targetISO=dateStr+'T'+('0'+targetHr).slice(-2)+':00';
+  let bestIdx=-1;
+  for(let i=0;i<h.time.length;i++){
+    if(h.time[i]===targetISO){bestIdx=i;break;}
+  }
+  if(bestIdx<0)return null;
+  const kn=Math.round(h.windspeed_10m[bestIdx]);
+  const bf=beaufort(kn);
+  const dir=compass(h.winddirection_10m[bestIdx]);
+  const code=h.weathercode[bestIdx];
+  const rainPct=h.precipitation_probability?h.precipitation_probability[bestIdx]:null;
+  const temp=h.temperature_2m?Math.round(h.temperature_2m[bestIdx]):null;
+  return{kn,bf,dir,code,rainPct,temp,tooFar:false};
 }
 
 function monthName(d){return['January','February','March','April','May','June','July','August','September','October','November','December'][new Date(d+'T12:00:00').getMonth()];}
@@ -1114,23 +1154,75 @@ function render(){
     ${months[mon].map(r=>{
       const isToday=r.d===todayStr,isSoon=r.d>todayStr&&r.d<=in14,isPast=r.d<todayStr;
       const dt=new Date(r.d+'T12:00:00');
-      return`<div class="cal-item ${isToday?'today-race':isSoon?'soon-race':isPast?'past-race':''}">
-        <div style="text-align:center;background:var(--bg2);border-radius:var(--radius);padding:6px 10px;min-width:50px;flex-shrink:0;">
-          <div style="font-size:10px;color:var(--txt2);text-transform:uppercase;">${dt.toLocaleDateString('en-GB',{weekday:'short'})}</div>
-          <div style="font-size:22px;font-weight:700;line-height:1.1;">${dt.getDate()}</div>
+      const isOpen=!!S.calExpanded[r.d];
+      const wx=getCalWeather(r.d, r.starts);
+      // Build weather snippet for header (when collapsed)
+      let wxBadge='';
+      if(wx&&!wx.tooFar){
+        const bfn=wx.bf.n;
+        const bfCol=bfn<=3?'var(--green-txt)':bfn<=5?'var(--amber-txt)':'var(--red-txt)';
+        const bfBg=bfn<=3?'var(--green-bg)':bfn<=5?'var(--amber-bg)':'var(--red-bg)';
+        wxBadge=`<span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:99px;background:${bfBg};color:${bfCol};margin-left:5px;">${wxIcon(wx.code)} B${bfn} ${wx.kn}kn ${wx.dir}</span>`;
+      }
+      // Build expanded weather panel
+      let wxPanel='';
+      if(wx&&wx.tooFar){
+        wxPanel=`<div style="padding:10px 14px;font-size:12px;color:var(--txt3);border-top:.5px solid var(--border);background:var(--bg2);">&#127966; Forecast available within 4 days of race</div>`;
+      } else if(wx){
+        const bfn=wx.bf.n;
+        const sBg=bfn<=3?'var(--green-bg)':bfn<=5?'var(--amber-bg)':'var(--red-bg)';
+        const sTxt=bfn<=3?'var(--green-txt)':bfn<=5?'var(--amber-txt)':'var(--red-txt)';
+        const sBd=bfn<=3?'var(--green-bd)':bfn<=5?'var(--amber-bd)':'var(--red-bd)';
+        const sLabel=bfn<=3?'Good sailing':bfn<=5?'Moderate':bfn>=7?'Dangerous':'Strong wind';
+        wxPanel=`<div style="padding:10px 14px;border-top:.5px solid var(--border);background:var(--bg);">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--txt3);margin-bottom:8px;">Weather at race start</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+            <div style="background:${sBg};border:.5px solid ${sBd};border-radius:var(--radius);padding:8px;text-align:center;">
+              <div style="font-size:10px;text-transform:uppercase;color:${sTxt};margin-bottom:2px;">Beaufort</div>
+              <div style="font-size:20px;font-weight:800;color:${sTxt};">${bfn}</div>
+              <div style="font-size:10px;color:${sTxt};">${wx.bf.d}</div>
+            </div>
+            <div style="background:var(--bg2);border-radius:var(--radius);padding:8px;text-align:center;">
+              <div style="font-size:10px;text-transform:uppercase;color:var(--txt2);margin-bottom:2px;">Wind</div>
+              <div style="font-size:16px;font-weight:700;">${wx.kn}<span style="font-size:11px;font-weight:400;">kn</span></div>
+              <div style="font-size:10px;color:var(--txt2);">From ${wx.dir}</div>
+            </div>
+            <div style="background:var(--bg2);border-radius:var(--radius);padding:8px;text-align:center;">
+              <div style="font-size:10px;text-transform:uppercase;color:var(--txt2);margin-bottom:2px;">Conditions</div>
+              <div style="font-size:16px;">${wxIcon(wx.code)}</div>
+              <div style="font-size:10px;color:var(--txt2);">${wx.rainPct!==null?wx.rainPct+'% rain':wx.temp!==null?wx.temp+'°C':''}</div>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px;background:${sBg};color:${sTxt};display:inline-block;">${sLabel}</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:6px;">&#9432; Forecast for race start time · Open-Meteo</div>
+        </div>`;
+      } else if(r.d>=todayStr){
+        wxPanel=`<div style="padding:10px 14px;font-size:12px;color:var(--txt3);border-top:.5px solid var(--border);background:var(--bg2);">Load the Weather tab to enable forecasts here</div>`;
+      }
+      return`<div style="border:.5px solid ${isToday?'var(--green-bd)':isSoon?'var(--amber-bd)':'var(--border)'};border-radius:var(--radius);background:${isToday?'var(--green-bg)':isSoon?'var(--amber-bg)':'var(--bg)'};overflow:hidden;margin-bottom:5px;${isPast?'opacity:.6;':''}">
+        <div onclick="toggleCal('${r.d}')" style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+          <div style="text-align:center;background:var(--bg2);border-radius:var(--radius);padding:6px 10px;min-width:50px;flex-shrink:0;">
+            <div style="font-size:10px;color:var(--txt2);text-transform:uppercase;">${dt.toLocaleDateString('en-GB',{weekday:'short'})}</div>
+            <div style="font-size:22px;font-weight:700;line-height:1.1;">${dt.getDate()}</div>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:14px;margin-bottom:3px;">
+              ${r.events.split('·').map(e=>`<span>${e.trim()}</span>`).join('<span style="color:var(--txt3);margin:0 4px;">·</span>')}
+              ${isToday?`<span class="badge" style="background:var(--green-bg);color:var(--green-txt);margin-left:5px;">Today</span>`:''}
+              ${isSoon?`<span class="badge" style="background:var(--amber-bg);color:var(--amber-txt);margin-left:5px;">Soon</span>`:''}
+              ${wxBadge}
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:3px;align-items:center;">
+              ${r.hw?`<span style="font-size:12px;color:var(--blue-txt);">&#9651; HW ${r.hw} (${r.ht}m)</span>`:''}
+              ${r.starts?`<span style="font-size:12px;color:var(--txt2);">&#x23F0; ${r.starts}</span>`:''}
+              ${r.loc?`<span style="font-size:12px;color:var(--txt3);">${r.loc}</span>`:''}
+              ${r.tender?`<span class="badge" style="background:var(--bg2);color:var(--txt2);font-size:10px;">Tender</span>`:''}
+            </div>
+          </div>
+          <svg id="cal-chev-${r.d}" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--txt3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:4px;transition:transform .25s;transform:${isOpen?'rotate(180deg)':'rotate(0deg)'}"><polyline points="3,6 8,11 13,6"/></svg>
         </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:14px;margin-bottom:3px;">
-            ${r.events.split('·').map(e=>`<span>${e.trim()}</span>`).join('<span style="color:var(--txt3);margin:0 4px;">·</span>')}
-            ${isToday?`<span class="badge" style="background:var(--green-bg);color:var(--green-txt);margin-left:5px;">Today</span>`:''}
-            ${isSoon?`<span class="badge" style="background:var(--amber-bg);color:var(--amber-txt);margin-left:5px;">Soon</span>`:''}
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:3px;align-items:center;">
-            ${r.hw?`<span style="font-size:12px;color:var(--blue-txt);">&#9651; HW ${r.hw} (${r.ht}m)</span>`:''}
-            ${r.starts?`<span style="font-size:12px;color:var(--txt2);">&#x23F0; ${r.starts}</span>`:''}
-            ${r.loc?`<span style="font-size:12px;color:var(--txt3);">${r.loc}</span>`:''}
-            ${r.tender?`<span class="badge" style="background:var(--bg2);color:var(--txt2);font-size:10px;">Tender</span>`:''}
-          </div>
+        <div id="cal-panel-${r.d}" style="max-height:${isOpen?'9999px':'0'};opacity:${isOpen?'1':'0'};overflow:hidden;transition:max-height .3s ease,opacity .2s ease;">
+          ${wxPanel}
         </div>
       </div>`;}).join('')}
   `).join('')}
