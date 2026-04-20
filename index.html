@@ -130,19 +130,19 @@ const CLASSES=[
 ];
 
 const MARKS=[
-  {abbr:"J",name:"Joscelyne",desc:"East cardinal buoy, off Southend Pier end"},
-  {abbr:"W",name:"West",desc:"West Shoebury buoy"},
-  {abbr:"R",name:"Ray",desc:"Ray Sand channel mark"},
-  {abbr:"HR",name:"Half Ray",desc:"Half Ray buoy"},
-  {abbr:"HRE",name:"Half Ray East",desc:"Half Ray East buoy"},
-  {abbr:"S",name:"South",desc:"South Shoebury mark"},
-  {abbr:"A",name:"Admirals",desc:"Admirals mark"},
-  {abbr:"C",name:"Crowstone",desc:"Crowstone mark"},
-  {abbr:"CO",name:"Crowstone Outfall",desc:"Crowstone Outfall mark"},
-  {abbr:"ME",name:"Marsh End",desc:"Marsh End buoy — junction of Ray Gut"},
-  {abbr:"RS",name:"Ray Sands",desc:"Ray Sands outer mark"},
-  {abbr:"DM",name:"Distance Mark",desc:"Down Mark — finishing/turning mark set by race officer on the day"},
-  {abbr:"OLM",name:"Offshore Limit Mark",desc:"Offshore limit mark set by race officer"},
+  {abbr:"J",name:"Joscelyne"},
+  {abbr:"W",name:"West"},
+  {abbr:"R",name:"Ray"},
+  {abbr:"HR",name:"Half Ray"},
+  {abbr:"HRE",name:"Half Ray East"},
+  {abbr:"S",name:"South"},
+  {abbr:"A",name:"Admirals"},
+  {abbr:"C",name:"Crowstone"},
+  {abbr:"CO",name:"Crowstone Outfall"},
+  {abbr:"ME",name:"Marsh End"},
+  {abbr:"RS",name:"Ray Sands"},
+  {abbr:"DM",name:"Distance Mark"},
+  {abbr:"OLM",name:"Offshore Limit Mark"},
 ];
 
 const COURSES=[
@@ -313,7 +313,7 @@ function loadState(){
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 let S={
-  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',wxData:null,wxLoading:false,wxError:null,wxFetched:0,
+  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',wxData:null,wxLoading:false,wxError:null,wxFetched:0,wxExpanded:{},
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
   showLateAdd:false,shortenedCourse:false,
@@ -587,8 +587,8 @@ window.setStatus=(id,st)=>{
 window.startSequence=()=>{
   initAudio();
   S.status='sequence';
-  S.startTime=Date.now()+305000; // race gun 5m05s ahead (gives a few seconds of lead-in)
-  S.elapsed=-(S.startTime-Date.now());
+  S.startTime=Date.now()+300000; // race gun exactly 5m00s ahead
+  S.elapsed=-300000;
   S.comps.forEach(c=>{c.laps=0;c.finishTime=null;c.lapTimes=[];c.status='ok';c.addedLate=false;});
   S.actionHistory=[];S.redoHistory=[];S.raceNotes='';S.showLateAdd=false;
   clearInterval(S.timerRef);
@@ -687,7 +687,7 @@ function monthName(d){return['January','February','March','April','May','June','
 const WX_LAT=51.5369, WX_LON=0.6767;
 const WX_URL='https://api.open-meteo.com/v1/forecast'
   +'?latitude='+WX_LAT+'&longitude='+WX_LON
-  +'&hourly=windspeed_10m,winddirection_10m,precipitation,weathercode'
+  +'&hourly=windspeed_10m,winddirection_10m,precipitation_probability,precipitation,weathercode,temperature_2m'
   +'&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max,winddirection_10m_dominant,precipitation_sum,sunrise,sunset'
   +'&windspeed_unit=kn&timezone=Europe%2FLondon&forecast_days=4';
 
@@ -765,24 +765,59 @@ async function fetchWeather(){
   render();
 }
 
+function toggleWxDay(i){
+  S.wxExpanded[i]=!S.wxExpanded[i];
+  const panel=document.getElementById('wx-hourly-'+i);
+  const chev=document.getElementById('wx-chev-'+i);
+  if(panel){
+    const open=S.wxExpanded[i];
+    panel.style.maxHeight=open?panel.scrollHeight+'px':'0';
+    panel.style.opacity=open?'1':'0';
+    if(chev)chev.style.transform=open?'rotate(180deg)':'rotate(0deg)';
+  }
+}
+
+function renderHourlyRows(date,h){
+  const rows=[];
+  const now=new Date();
+  const todayStr=now.toLocaleDateString('en-CA');
+  h.time.forEach((t,i)=>{
+    if(!t.startsWith(date+'T'))return;
+    const hr=parseInt(t.slice(11,13));
+    const dt=new Date(t);
+    if(date===todayStr&&dt<now&&now.getHours()!==hr)return;
+    const kn=Math.round(h.windspeed_10m[i]);
+    const bf=beaufort(kn);
+    const dir=compass(h.winddirection_10m[i]);
+    const code=h.weathercode[i];
+    const rainPct=h.precipitation_probability?h.precipitation_probability[i]:null;
+    const temp=h.temperature_2m?Math.round(h.temperature_2m[i]):null;
+    const bfn=bf.n;
+    const bfCol=bfn<=3?'var(--green-txt)':bfn<=5?'var(--amber-txt)':'var(--red-txt)';
+    const bfBg=bfn<=3?'var(--green-bg)':bfn<=5?'var(--amber-bg)':'var(--red-bg)';
+    rows.push(
+      '<div style="display:grid;grid-template-columns:44px 24px 40px 52px 36px auto;align-items:center;padding:7px 12px;border-bottom:.5px solid var(--border);">'
+      +'<span style="font-size:13px;font-weight:600;color:var(--txt2);font-family:var(--mono);">'+('0'+hr).slice(-2)+':00</span>'
+      +'<span style="font-size:13px;">'+wxIcon(code)+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:'+bfCol+';background:'+bfBg+';border-radius:4px;padding:1px 5px;text-align:center;">B'+bfn+'</span>'
+      +'<span style="font-size:13px;font-weight:600;">'+kn+'<span style="font-size:11px;font-weight:400;color:var(--txt2);">kn</span></span>'
+      +'<span style="font-size:12px;color:var(--txt2);">'+dir+'</span>'
+      +(rainPct!==null?'<span style="font-size:12px;color:var(--blue-txt);text-align:right;margin-left:auto;">'+rainPct+'%</span>'
+        :temp!==null?'<span style="font-size:12px;color:var(--txt3);text-align:right;margin-left:auto;">'+temp+'\u00b0</span>':'')
+      +'</div>'
+    );
+  });
+  return rows.length?rows.join(''):'<div style="padding:10px 14px;font-size:12px;color:var(--txt3);">No upcoming hours</div>';
+}
+
 function renderWeatherSection(){
-  if(S.wxLoading)return`
-    <div style="text-align:center;padding:3rem 1rem;color:var(--txt2);">
-      <div style="font-size:32px;margin-bottom:12px;">🌊</div>
-      <div style="font-size:14px;">Fetching forecast…</div>
-    </div>`;
-  if(S.wxError)return`
-    <div style="padding:14px;background:var(--red-bg);border:.5px solid var(--red-bd);border-radius:var(--radius);color:var(--red-txt);font-size:13px;margin-bottom:1rem;">${S.wxError}</div>
-    <div style="text-align:center;"><button onclick="fetchWeather()" style="padding:10px 24px;">&#8635; Retry</button></div>`;
-  if(!S.wxData)return`
-    <div style="text-align:center;padding:3rem 1rem;">
-      <div style="font-size:48px;margin-bottom:12px;">⛵</div>
-      <div style="font-size:14px;color:var(--txt2);margin-bottom:1.5rem;">3-day marine forecast for Chalkwell Beach</div>
-      <button class="btn-blue" onclick="fetchWeather()" style="padding:12px 32px;font-size:15px;font-weight:600;">Load forecast</button>
-    </div>`;
+  if(S.wxLoading)return'<div style="text-align:center;padding:3rem 1rem;color:var(--txt2);"><div style="font-size:32px;margin-bottom:12px;">\uD83C\uDF0A</div><div style="font-size:14px;">Fetching forecast\u2026</div></div>';
+  if(S.wxError)return'<div style="padding:14px;background:var(--red-bg);border:.5px solid var(--red-bd);border-radius:var(--radius);color:var(--red-txt);font-size:13px;margin-bottom:1rem;">'+S.wxError+'</div><div style="text-align:center;"><button onclick="fetchWeather()" style="padding:10px 24px;">&#8635; Retry</button></div>';
+  if(!S.wxData)return'<div style="text-align:center;padding:3rem 1rem;"><div style="font-size:48px;margin-bottom:12px;">\u26F5</div><div style="font-size:14px;color:var(--txt2);margin-bottom:1.5rem;">4-day marine forecast \u00b7 Chalkwell Beach</div><button class="btn-blue" onclick="fetchWeather()" style="padding:12px 32px;font-size:15px;font-weight:600;">Load forecast</button></div>';
 
   const d=S.wxData.daily;
-  const days=d.time.slice(0,4); // today + 3 days
+  const h=S.wxData.hourly;
+  const days=d.time.slice(0,4);
   const fetched=new Date(S.wxFetched).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 
   const cards=days.map((date,i)=>{
@@ -797,56 +832,62 @@ function renderWeatherSection(){
     const sunset=fmtTime(d.sunset[i]);
     const label=fmtDayLabel(date);
     const isToday=i===0;
-
-    // Sailing suitability colour
+    const isOpen=!!S.wxExpanded[i];
     const bfn=bf.n;
-    const suitBg=bfn<=3?'var(--green-bg)':bfn<=5?'var(--amber-bg)':'var(--red-bg)';
-    const suitTxt=bfn<=3?'var(--green-txt)':bfn<=5?'var(--amber-txt)':'var(--red-txt)';
-    const suitBd=bfn<=3?'var(--green-bd)':bfn<=5?'var(--amber-bd)':'var(--red-bd)';
-    const suitLabel=bfn<=3?'Good sailing':bfn<=5?'Moderate':bfn>=7?'Dangerous':'Strong wind';
-
-    return`<div style="background:var(--bg);border:.5px solid ${isToday?'var(--blue-bd)':'var(--border)'};border-radius:var(--radius-lg);padding:1rem;margin-bottom:10px;${isToday?'border-width:1.5px;':''}">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
-        <div>
-          <div style="font-weight:700;font-size:16px;color:${isToday?'var(--blue-txt)':'var(--txt)'};">${label}</div>
-          <div style="font-size:12px;color:var(--txt2);margin-top:2px;">${wxIcon(code)} ${wxDesc(code)}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:22px;font-weight:700;">${tMax}°<span style="font-size:14px;font-weight:400;color:var(--txt2);">/${tMin}°C</span></div>
-        </div>
-      </div>
-      <!-- Wind row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div style="background:${suitBg};border:.5px solid ${suitBd};border-radius:var(--radius);padding:8px 10px;text-align:center;">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:${suitTxt};margin-bottom:3px;">Beaufort</div>
-          <div style="font-size:22px;font-weight:800;color:${suitTxt};">${bfn}</div>
-          <div style="font-size:11px;color:${suitTxt};">${bf.d}</div>
-        </div>
-        <div style="background:var(--bg2);border-radius:var(--radius);padding:8px 10px;text-align:center;">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--txt2);margin-bottom:3px;">Wind</div>
-          <div style="font-size:18px;font-weight:700;">${kn}<span style="font-size:12px;font-weight:400;">kn</span></div>
-          <div style="font-size:11px;color:var(--txt2);">From ${dir}</div>
-        </div>
-        <div style="background:var(--bg2);border-radius:var(--radius);padding:8px 10px;text-align:center;">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--txt2);margin-bottom:3px;">Rain</div>
-          <div style="font-size:18px;font-weight:700;">${rain.toFixed(1)}<span style="font-size:12px;font-weight:400;">mm</span></div>
-          <div style="font-size:11px;color:var(--txt2);">${rain<1?'Dry':rain<5?'Light':rain<15?'Moderate':'Heavy'}</div>
-        </div>
-      </div>
-      <!-- Suitability + sun -->
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-        <span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;background:${suitBg};color:${suitTxt};border:.5px solid ${suitBd};">${suitLabel}</span>
-        <span style="font-size:12px;color:var(--txt2);">🌅 ${sunrise} &nbsp; 🌇 ${sunset}</span>
-      </div>
-    </div>`;
+    const sBg=bfn<=3?'var(--green-bg)':bfn<=5?'var(--amber-bg)':'var(--red-bg)';
+    const sTxt=bfn<=3?'var(--green-txt)':bfn<=5?'var(--amber-txt)':'var(--red-txt)';
+    const sBd=bfn<=3?'var(--green-bd)':bfn<=5?'var(--amber-bd)':'var(--red-bd)';
+    const sLabel=bfn<=3?'Good sailing':bfn<=5?'Moderate':bfn>=7?'Dangerous':'Strong wind';
+    const hourlyHTML=renderHourlyRows(date,h);
+    return(
+      '<div style="background:var(--bg);border:.5px solid '+(isToday?'var(--blue-bd)':'var(--border)')+';border-radius:var(--radius-lg);overflow:hidden;margin-bottom:10px;'+(isToday?'border-width:1.5px;':'')+'">'
+      // Clickable summary header
+      +'<div onclick="toggleWxDay('+i+')" style="padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;">'
+          +'<div style="flex:1;min-width:0;">'
+            +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'
+              +'<span style="font-weight:700;font-size:16px;color:'+(isToday?'var(--blue-txt)':'var(--txt)')+'">' +label+'</span>'
+              +'<span style="font-size:12px;color:var(--txt2);">'+wxIcon(code)+' '+wxDesc(code)+'</span>'
+            +'</div>'
+            +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+              +'<span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:'+sBg+';color:'+sTxt+';border:.5px solid '+sBd+';">'+sLabel+'</span>'
+              +'<span style="font-size:12px;color:var(--txt2);">B'+bfn+' \u00b7 '+kn+'kn '+dir+'</span>'
+              +'<span style="font-size:12px;color:var(--txt2);">\uD83C\uDF05'+sunrise+' \uD83C\uDF07'+sunset+'</span>'
+            +'</div>'
+          +'</div>'
+          +'<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:10px;">'
+            +'<div style="text-align:right;">'
+              +'<div style="font-size:18px;font-weight:700;">'+tMax+'\u00b0<span style="font-size:12px;font-weight:400;color:var(--txt2);">/'+tMin+'\u00b0</span></div>'
+              +'<div style="font-size:11px;color:var(--txt3);">'+rain.toFixed(1)+'mm rain</div>'
+            +'</div>'
+            +'<svg id="wx-chev-'+i+'" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--txt3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform .25s;transform:'+(isOpen?'rotate(180deg)':'rotate(0deg)')+'"><polyline points="3,6 8,11 13,6"/></svg>'
+          +'</div>'
+        +'</div>'
+      +'</div>'
+      // Expandable hourly panel
+      +'<div id="wx-hourly-'+i+'" style="max-height:'+(isOpen?'9999px':'0')+';opacity:'+(isOpen?'1':'0')+';overflow:hidden;transition:max-height .35s ease,opacity .2s ease;">'
+        +'<div style="border-top:.5px solid var(--border);">'
+          +'<div style="display:grid;grid-template-columns:44px 24px 40px 52px 36px auto;padding:4px 12px 3px;background:var(--bg3);">'
+            +'<span style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--txt3);">Time</span>'
+            +'<span></span>'
+            +'<span style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--txt3);">BF</span>'
+            +'<span style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--txt3);">Kts</span>'
+            +'<span style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--txt3);">Dir</span>'
+            +'<span style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--txt3);text-align:right;">Rain%</span>'
+          +'</div>'
+          +hourlyHTML
+        +'</div>'
+      +'</div>'
+      +'</div>'
+    );
   }).join('');
 
-  return`
-    ${cards}
-    <div style="padding:10px 14px;background:var(--bg2);border-radius:var(--radius);font-size:11px;color:var(--txt3);display:flex;justify-content:space-between;align-items:center;">
-      <span>Chalkwell Beach · Open-Meteo</span>
-      <span>Updated ${fetched} &nbsp;<button onclick="S.wxFetched=0;fetchWeather()" style="font-size:11px;padding:2px 8px;border-radius:99px;">&#8635;</button></span>
-    </div>`;
+  return'<div style="font-size:11px;color:var(--txt3);margin-bottom:10px;text-align:center;">Tap a day for hourly detail</div>'
+    +cards
+    +'<div style="padding:10px 14px;background:var(--bg2);border-radius:var(--radius);font-size:11px;color:var(--txt3);display:flex;justify-content:space-between;align-items:center;">'
+    +'<span>Chalkwell Beach \u00b7 Open-Meteo</span>'
+    +'<span>Updated '+fetched+' &nbsp;<button onclick="S.wxFetched=0;fetchWeather()" style="font-size:11px;padding:2px 8px;border-radius:99px;">&#8635;</button></span>'
+    +'</div>';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1144,12 +1185,9 @@ function render(){
     <div class="card" style="margin-bottom:1rem;">
       <div style="font-size:15px;font-weight:600;margin-bottom:1rem;">LSC / EYC Mark Abbreviations</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">
-        ${MARKS.map(m=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--bg2);border-radius:var(--radius);">
-          <span class="mono" style="font-size:13px;font-weight:700;background:var(--blue-bg);color:var(--blue-txt);border:.5px solid var(--blue-bd);border-radius:4px;padding:2px 8px;flex-shrink:0;">${m.abbr}</span>
-          <div>
-            <div style="font-weight:600;font-size:14px;">${m.name}</div>
-            <div style="font-size:12px;color:var(--txt2);margin-top:2px;">${m.desc}</div>
-          </div>
+        ${MARKS.map(m=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border-radius:var(--radius);">
+          <span class="mono" style="font-size:13px;font-weight:700;background:var(--blue-bg);color:var(--blue-txt);border:.5px solid var(--blue-bd);border-radius:4px;padding:2px 8px;flex-shrink:0;min-width:42px;text-align:center;">${m.abbr}</span>
+          <span style="font-weight:600;font-size:14px;">${m.name}</span>
         </div>`).join('')}
       </div>
     </div>
