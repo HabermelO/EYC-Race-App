@@ -1442,6 +1442,98 @@ render();
 
 })();
 
+
+// === HAPTIC FEEDBACK ON LAP TAP ===
+(function(){
+  function vibrate(){
+    if(navigator.vibrate){
+      navigator.vibrate(10);
+    }
+  }
+
+  // Hook all click events on lap buttons via delegation
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest("button");
+    if(!btn) return;
+
+    // Heuristic: lap buttons usually contain "+" or "Lap"
+    const txt = btn.innerText || "";
+    if(txt.includes("+") || txt.toLowerCase().includes("lap")){
+      vibrate();
+    }
+  });
+})();
+
+
+// === RENAME RACE FEATURE ===
+(function(){
+  // Hook into existing race bar buttons after render
+  function enhanceRaceRename(){
+    const container = document.getElementById("race-bar");
+    if(!container) return;
+
+    [...container.querySelectorAll("button")].forEach((btn, idx)=>{
+      if(btn.textContent === "+") return;
+
+      let timer;
+      btn.addEventListener("mousedown", ()=>{
+        timer = setTimeout(()=>{
+          const newName = prompt("Rename race:", btn.textContent);
+          if(newName){
+            const races = JSON.parse(localStorage.getItem("races_integrated_v2")||"[]");
+            if(races[idx]){
+              races[idx].name = newName;
+              localStorage.setItem("races_integrated_v2", JSON.stringify(races));
+              btn.textContent = newName;
+            }
+          }
+        }, 600);
+      });
+      btn.addEventListener("mouseup", ()=> clearTimeout(timer));
+      btn.addEventListener("mouseleave", ()=> clearTimeout(timer));
+    });
+  }
+
+  // hook after render
+  const origRender = window.render;
+  if(origRender){
+    window.render = function(){
+      origRender.apply(this, arguments);
+      setTimeout(enhanceRaceRename, 0);
+    }
+  }
+})();
+
+
+// === ADD PENCIL ICON TO ACTIVE RACE ===
+(function(){
+  function addPencilIcon(){
+    const container = document.getElementById("race-bar");
+    if(!container) return;
+
+    const buttons = container.querySelectorAll("button");
+    buttons.forEach(btn=>{
+      if(btn.textContent.trim() === "+") return;
+      // remove existing icon if any
+      btn.innerHTML = btn.textContent.replace(" ✏️","");
+
+    });
+
+    const active = [...buttons].find(b => b.style.background === "rgb(0, 123, 255)" || b.style.background === "#007bff");
+    if(active){
+      active.innerHTML = active.textContent + " ✏️";
+    }
+  }
+
+  const origRender = window.render;
+  if(origRender){
+    window.render = function(){
+      origRender.apply(this, arguments);
+      setTimeout(addPencilIcon, 0);
+    }
+  }
+})();
+
 </script>
 </body>
 </html>
