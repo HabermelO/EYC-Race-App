@@ -100,6 +100,7 @@
   .st-ocs{background:var(--red-bg);color:var(--red-txt);border:.5px solid var(--red-bd);}
   .st-dnf{background:var(--amber-bg);color:var(--amber-txt);border:.5px solid var(--amber-bd);}
   .st-ret{background:var(--bg2);color:var(--txt2);border:.5px solid var(--border2);}
+  .st-dns{background:var(--blue-bg);color:var(--blue-txt);border:.5px solid var(--blue-bd);}
   .st-ok{background:var(--green-bg);color:var(--green-txt);border:.5px solid var(--green-bd);}
   .btn-lap{background:var(--bg2);color:var(--txt);border:.5px solid var(--border2);border-radius:99px;padding:9px 20px;font-size:14px;font-weight:700;min-width:72px;}
   .btn-lap:hover{background:var(--bg3);}
@@ -294,7 +295,8 @@ function saveState(){
       nextId:S.nextId,showLateAdd:S.showLateAdd,shortenedCourse:S.shortenedCourse,
       lateSailInput:S.lateSailInput,lateClassIdx:S.lateClassIdx,
       latePyInput:S.latePyInput,lateCustomName:S.lateCustomName,
-      actionHistory:S.actionHistory,redoHistory:S.redoHistory,raceNotes:S.raceNotes
+      actionHistory:S.actionHistory,redoHistory:S.redoHistory,raceNotes:S.raceNotes,
+      bulkFinish:S.bulkFinish
     }));
     const pill=document.getElementById('save-pill');
     if(pill){pill.style.opacity='1';clearTimeout(savePillTimer);savePillTimer=setTimeout(()=>{pill.style.opacity='0';},1500);}
@@ -317,6 +319,7 @@ function loadState(){
     S.actionHistory=sn.actionHistory||[];
     S.redoHistory=sn.redoHistory||[];
     S.raceNotes=sn.raceNotes||'';
+    S.bulkFinish=sn.bulkFinish||false;
     if(S.status==='running'&&S.startTime)S.elapsed=Date.now()-S.startTime;
     if(S.status==='sequence'&&S.startTime)S.elapsed=Date.now()-S.startTime;
   }catch(e){}
@@ -329,9 +332,10 @@ let S={
   mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',wxData:null,wxLoading:false,wxError:null,wxFetched:0,wxExpanded:{},calExpanded:{},
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
-  showLateAdd:false,shortenedCourse:false,
+  showLateAdd:false,shortenedCourse:false,bulkFinish:false,
+  editPYId:null,editPYVal:'',
   lateSailInput:'',lateClassIdx:0,latePyInput:1103,lateCustomName:'',
-  actionHistory:[],   // [{type,id,lap,finishTime,lapTimes,status}]
+  actionHistory:[],   // [{type,id,lap,finishTime,lapTimes,status,py}]
   redoHistory:[],     // mirror stack for redo
   raceNotes:''        // free-text notes saved per race session
 };
@@ -427,8 +431,8 @@ function sortedComps(){
   if(!any)return[...S.comps];
   return[...S.comps].sort((a,b)=>{
     // OCS/RET go to bottom
-    const aEx=a.status==='ocs'||a.status==='ret';
-    const bEx=b.status==='ocs'||b.status==='ret';
+    const aEx=a.status==='ocs'||a.status==='ret'||a.status==='dns';
+    const bEx=b.status==='ocs'||b.status==='ret'||b.status==='dns';
     if(aEx!==bEx)return aEx?1:-1;
     if(b.laps!==a.laps)return b.laps-a.laps;
     const aT=a.lapTimes.length?a.lapTimes[a.lapTimes.length-1]:Infinity;
@@ -439,7 +443,7 @@ function sortedComps(){
 
 // Average lap scoring for shortened course
 function getResults(){
-  const active=S.comps.filter(c=>c.status!=='ocs'&&c.status!=='ret');
+  const active=S.comps.filter(c=>c.status!=='ocs'&&c.status!=='ret'&&c.status!=='dns');
   const maxLaps=Math.max(0,...active.map(c=>c.laps));
   return active.map(c=>{
     let eff,corr;
@@ -478,7 +482,7 @@ function pushHistory(type,id){
   if(!c)return;
   // Any new action clears the redo stack
   S.redoHistory=[];
-  S.actionHistory.push({type,id,laps:c.laps,finishTime:c.finishTime,lapTimes:[...c.lapTimes],status:c.status});
+  S.actionHistory.push({type,id,laps:c.laps,finishTime:c.finishTime,lapTimes:[...c.lapTimes],status:c.status,py:c.py});
   if(S.actionHistory.length>30)S.actionHistory.shift();
 }
 window.undoLast=()=>{
@@ -487,8 +491,9 @@ window.undoLast=()=>{
   const c=S.comps.find(x=>x.id===h.id);
   if(!c)return;
   // Save current state to redo stack before reverting
-  S.redoHistory.push({type:h.type,id:h.id,laps:c.laps,finishTime:c.finishTime,lapTimes:[...c.lapTimes],status:c.status});
+  S.redoHistory.push({type:h.type,id:h.id,laps:c.laps,finishTime:c.finishTime,lapTimes:[...c.lapTimes],status:c.status,py:c.py});
   c.laps=h.laps;c.finishTime=h.finishTime;c.lapTimes=h.lapTimes;c.status=h.status;
+  if(h.py!==undefined)c.py=h.py;
   saveState();renderRaceList();updateUndoButtons();
 };
 window.redoLast=()=>{
@@ -497,8 +502,9 @@ window.redoLast=()=>{
   const c=S.comps.find(x=>x.id===h.id);
   if(!c)return;
   // Save current state back to undo stack
-  S.actionHistory.push({type:h.type,id:h.id,laps:c.laps,finishTime:c.finishTime,lapTimes:[...c.lapTimes],status:c.status});
+  S.actionHistory.push({type:h.type,id:h.id,laps:c.laps,finishTime:c.finishTime,lapTimes:[...c.lapTimes],status:c.status,py:c.py});
   c.laps=h.laps;c.finishTime=h.finishTime;c.lapTimes=h.lapTimes;c.status=h.status;
+  if(h.py!==undefined)c.py=h.py;
   saveState();renderRaceList();updateUndoButtons();
 };
 // Update just the undo/redo button states without re-rendering the whole page
@@ -548,8 +554,8 @@ window.downloadCSV=()=>{
     const status=c.dnf?'DNF':(c.status||'Finished');
     rows.push([posl(i),c.sail,c.name,c.py,c.laps,splits,fmtRes(c.eff),c.corr!==null?fmtRes(c.corr):'—',status]);
   });
-  // Also list OCS/RET
-  S.comps.filter(c=>c.status==='ocs'||c.status==='ret').forEach(c=>{
+  // Also list OCS/RET/DNS
+  S.comps.filter(c=>c.status==='ocs'||c.status==='ret'||c.status==='dns').forEach(c=>{
     rows.push(['—',c.sail,c.name,c.py,c.laps,'','','',c.status.toUpperCase()]);
   });
   const csv='data:text/csv;charset=utf-8,'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
@@ -558,6 +564,49 @@ window.downloadCSV=()=>{
   a.download='EYC_Race_Results_'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
 };
+
+// RYA-format results sheet
+window.downloadRYA=()=>{
+  const results=getResults();
+  if(!results.length){alert('No results to export yet.');return;}
+  const today=new Date();
+  const dateStr=today.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const raceName=S.raceNotes||'Race';
+  // RYA standard format: Race Title, Club, Date, then position table
+  const lines=[];
+  lines.push(['Essex Yacht Club — RYA Results Sheet']);
+  lines.push(['Race:',raceName]);
+  lines.push(['Date:',dateStr]);
+  lines.push(['Scoring:','Portsmouth Yardstick (PY) 2026']);
+  lines.push([]);
+  lines.push(['Pos','Sail No','Helm','Boat Class','PY','Elapsed (H:M:S)','Corrected (H:M:S)','Points']);
+  results.forEach((c,i)=>{
+    const pos=c.dnf?'DNF':String(i+1);
+    const pts=c.dnf?String(results.length+1):String(i+1);  // RYA: DNF = boats entered + 1
+    const elapsed=c.eff!==null?fmtRYATime(c.eff):'';
+    const corrected=c.corr!==null?fmtRYATime(c.corr):'';
+    lines.push([pos,c.sail,'',c.name,c.py,elapsed,corrected,pts]);
+  });
+  // Non-finishers
+  const excl=S.comps.filter(c=>['ocs','dns','ret','dnf'].includes(c.status)&&!results.find(r=>r.id===c.id));
+  if(excl.length){
+    lines.push([]);
+    lines.push(['Non-finishers / Excluded']);
+    lines.push(['Code','Sail No','Boat Class','PY']);
+    excl.forEach(c=>lines.push([c.status.toUpperCase(),c.sail,c.name,c.py]));
+  }
+  lines.push([]);
+  lines.push(['These results are provisional and subject to protest.']);
+  const csv='data:text/csv;charset=utf-8,'+lines.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a=document.createElement('a');
+  a.href=encodeURI(csv);
+  a.download='EYC_RYA_Results_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+};
+function fmtRYATime(ms){
+  const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;
+  return h+':'+p(m)+':'+p(sc);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ACTIONS
@@ -601,10 +650,50 @@ window.setStatus=(id,st)=>{
   if(!c)return;
   pushHistory('status',id);
   if(c.status===st){c.status='ok';}else{c.status=st;}
-  // OCS/RET = exclude from results
-  if(c.status==='ocs'){c.finishTime=null;c.laps=0;c.lapTimes=[];}
+  // OCS/DNS/RET = exclude from results, clear times
+  if(c.status==='ocs'||c.status==='dns'){c.finishTime=null;c.laps=0;c.lapTimes=[];}
   saveState();renderRaceList();
 };
+
+// PY number edit actions
+window.startEditPY=(id)=>{
+  const c=S.comps.find(x=>x.id===id);
+  if(!c)return;
+  S.editPYId=id;S.editPYVal=String(c.py);
+  renderRaceList();
+  setTimeout(()=>{const inp=document.getElementById('py-edit-'+id);if(inp){inp.focus();inp.select();}},30);
+};
+window.onEditPYVal=v=>{S.editPYVal=v;};
+window.commitEditPY=(id)=>{
+  const c=S.comps.find(x=>x.id===id);
+  if(!c)return;
+  const v=parseInt(S.editPYVal);
+  if(v>0&&v!==c.py){pushHistory('py',id);c.py=v;}
+  S.editPYId=null;S.editPYVal='';
+  saveState();renderRaceList();
+};
+window.cancelEditPY=()=>{S.editPYId=null;S.editPYVal='';renderRaceList();};
+window.onEditPYKey=e=>{if(e.key==='Enter')commitEditPY(parseInt(e.target.dataset.id));if(e.key==='Escape')cancelEditPY();};
+
+// Bulk finish mode
+window.toggleBulkFinish=()=>{S.bulkFinish=!S.bulkFinish;saveState();renderRaceList();updateBulkButton();};
+window.bulkFinishNext=()=>{
+  if(S.status!=='running')return;
+  // Find first unfinished, non-excluded boat in current sorted order
+  const sorted=sortedComps();
+  const next=sorted.find(c=>c.finishTime===null&&c.status!=='ocs'&&c.status!=='ret'&&c.status!=='dns');
+  if(!next){if(navigator.vibrate)navigator.vibrate([30,30,30]);return;}
+  pushHistory('finish',next.id);
+  next.finishTime=S.elapsed;next.laps++;next.lapTimes.push(S.elapsed);
+  if(navigator.vibrate)navigator.vibrate([50,30,100]);
+  saveState();renderRaceList();updateUndoButtons();updateBulkButton();
+};
+function updateBulkButton(){
+  const btn=document.getElementById('bulk-btn');
+  if(!btn)return;
+  const remaining=S.comps.filter(c=>c.finishTime===null&&c.status!=='ocs'&&c.status!=='ret'&&c.status!=='dns').length;
+  btn.textContent='🏁 Finish next'+(remaining?' ('+remaining+' left)':'');
+}
 
 window.syncTimer=()=>{
   if(S.status!=='sequence'&&S.status!=='running')return;
@@ -674,36 +763,70 @@ function renderRaceList(){
   const running=S.status==='running';
   const any=S.comps.some(c=>c.laps>0||c.finishTime!==null);
   const sorted=sortedComps();
-  const statusOpts=['ocs','dnf','ret'];
-  el.innerHTML=(any?'<p style="font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">On-water order — re-sorts each lap</p>':'')+
+
+  // Bulk finish banner at top
+  const remaining=S.comps.filter(c=>c.finishTime===null&&c.status!=='ocs'&&c.status!=='ret'&&c.status!=='dns').length;
+  const bulkBanner=running?`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:10px 14px;border-radius:var(--radius);background:${S.bulkFinish?'var(--green-bg)':'var(--bg2)'};border:.5px solid ${S.bulkFinish?'var(--green-bd)':'var(--border)'};">
+      <span style="flex:1;font-size:13px;font-weight:${S.bulkFinish?'700':'500'};color:${S.bulkFinish?'var(--green-txt)':'var(--txt2)'};">
+        ${S.bulkFinish?'🏁 Bulk finish mode ON — tap button to record each finisher in order':'Busy finish line? Use bulk finish mode'}
+      </span>
+      ${S.bulkFinish?`<button id="bulk-btn" onclick="bulkFinishNext()" class="btn-green" style="padding:14px 22px;font-size:16px;font-weight:800;min-width:140px;border-radius:var(--radius);">🏁 Finish next${remaining?' ('+remaining+')':''}</button>
+      <button onclick="toggleBulkFinish()" style="padding:10px 14px;font-size:13px;">✕ Off</button>`
+      :`<button onclick="toggleBulkFinish()" style="padding:9px 18px;font-size:13px;">Enable</button>`}
+    </div>`:'' ;
+
+  el.innerHTML=bulkBanner+(any?'<p style="font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">On-water order — re-sorts each lap</p>':'')+
   sorted.map((c,i)=>{
     const lead=any&&i===0&&c.laps>0&&c.finishTime===null&&c.status==='ok';
-    const rowCls=c.status==='ocs'?'ocs-row':c.status==='ret'?'ret-row':c.status==='dnf'?'dnf-row':c.finishTime!==null?'finished':lead?'leading':'';
-    return`<div class="comp-row ${rowCls}">
-      ${any?`<span style="font-size:12px;font-weight:600;color:var(--txt2);min-width:20px;">${c.status==='ocs'||c.status==='ret'?'—':i+1}</span>`:''}
-      <div style="flex:1;min-width:0;">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span class="mono" style="font-weight:700;font-size:15px;">${c.sail}</span>
-          <span style="font-size:12px;color:var(--txt2);">${c.name}</span>
-          ${c.status!=='ok'?`<span class="badge st-${c.status}" style="font-size:10px;">${c.status.toUpperCase()}</span>`:''}
-          ${c.addedLate?`<span class="badge" style="background:var(--amber-bg);color:var(--amber-txt);font-size:10px;">Added</span>`:''}
+    const rowCls=c.status==='ocs'?'ocs-row':c.status==='ret'?'ret-row':c.status==='dnf'?'dnf-row':c.status==='dns'?'ret-row':c.finishTime!==null?'finished':lead?'leading':'';
+    const editingPY=S.editPYId===c.id;
+
+    // Status buttons: larger touch targets, laid out as pill row
+    const statusRow=`
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;">
+        ${['ocs','dns','dnf','ret'].map(st=>`
+          <button onclick="setStatus(${c.id},'${st}')" style="padding:7px 11px;font-size:12px;font-weight:600;border-radius:99px;border:.5px solid ${c.status===st?'transparent':'var(--border2)'};background:${c.status===st?`var(--${st==='ocs'?'red':st==='dns'?'blue':st==='dnf'?'amber':'bg3'}-bg)`:'var(--bg2)'};color:${c.status===st?`var(--${st==='ocs'?'red':st==='dns'?'blue':st==='dnf'?'amber':'txt2'}-txt)`:'var(--txt2)'};">${st.toUpperCase()}</button>
+        `).join('')}
+      </div>`;
+
+    // PY display / edit
+    const pyDisplay=editingPY
+      ?`<span style="display:inline-flex;align-items:center;gap:4px;">
+          <input id="py-edit-${c.id}" data-id="${c.id}" type="number" value="${S.editPYVal}"
+            oninput="onEditPYVal(this.value)" onkeydown="onEditPYKey(event)"
+            style="width:68px;font-size:13px;padding:4px 6px;border:.5px solid var(--blue-bd);border-radius:var(--radius);background:var(--bg);color:var(--txt);">
+          <button onclick="commitEditPY(${c.id})" style="padding:4px 10px;font-size:12px;background:var(--green-bg);color:var(--green-txt);border:.5px solid var(--green-bd);border-radius:var(--radius);">✓</button>
+          <button onclick="cancelEditPY()" style="padding:4px 8px;font-size:12px;">✕</button>
+        </span>`
+      :`<span style="font-size:12px;color:var(--txt2);cursor:pointer;" onclick="startEditPY(${c.id})" title="Tap to edit PY">PY ${c.py} ✎</span>`;
+
+    return`<div class="comp-row ${rowCls}" style="flex-direction:column;align-items:stretch;gap:0;padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${any?`<span style="font-size:13px;font-weight:700;color:var(--txt2);min-width:22px;">${['ocs','ret','dns'].includes(c.status)?'—':i+1}</span>`:''}
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span class="mono" style="font-weight:700;font-size:16px;">${c.sail}</span>
+            <span style="font-size:12px;color:var(--txt2);">${c.name}</span>
+            ${c.status!=='ok'?`<span class="badge st-${c.status}" style="font-size:11px;">${c.status.toUpperCase()}</span>`:''}
+            ${c.addedLate?`<span class="badge" style="background:var(--amber-bg);color:var(--amber-txt);font-size:10px;">Late</span>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap;">
+            <span style="font-size:11px;color:var(--txt2);">${c.laps} lap${c.laps!==1?'s':''}${c.finishTime!==null?' · FIN '+fmtTimer(c.finishTime):''}</span>
+            ${pyDisplay}
+          </div>
         </div>
-        <div style="font-size:11px;color:var(--txt2);margin-top:2px;">${c.laps} lap${c.laps!==1?'s':''}${c.finishTime!==null?' · FIN '+fmtTimer(c.finishTime):''}</div>
+        <!-- Action buttons -->
+        ${!['ocs','ret','dns'].includes(c.status)&&c.finishTime===null
+          ?`<div style="display:flex;gap:6px;flex-shrink:0;">
+              <button class="btn-lap" onclick="recLap(${c.id})" ${!running||S.bulkFinish?'disabled':''} style="padding:12px 18px;font-size:15px;font-weight:700;border-radius:var(--radius);">+Lap</button>
+              <button class="btn-finish" onclick="recFinish(${c.id})" ${!running||S.bulkFinish?'disabled':''} style="padding:12px 18px;font-size:15px;font-weight:700;border-radius:var(--radius);">&#9654;Fin</button>
+            </div>`
+          :c.finishTime!==null
+            ?`<span class="mono" style="font-size:12px;color:var(--green-txt);flex-shrink:0;">${fmtTimer(c.finishTime)} ✓</span>`
+            :`<span style="font-size:11px;color:var(--txt3);flex-shrink:0;">${c.status.toUpperCase()}</span>`}
       </div>
-      <!-- Status dropdown -->
-      <select onchange="setStatus(${c.id},this.value);this.blur();" style="width:60px;font-size:11px;padding:4px 2px;flex-shrink:0;" title="Set status">
-        <option value="ok" ${c.status==='ok'?'selected':''}>—</option>
-        <option value="ocs" ${c.status==='ocs'?'selected':''}>OCS</option>
-        <option value="dnf" ${c.status==='dnf'?'selected':''}>DNF</option>
-        <option value="ret" ${c.status==='ret'?'selected':''}>RET</option>
-      </select>
-      ${c.status!=='ocs'&&c.status!=='ret'&&c.finishTime===null
-        ?`<div style="display:flex;gap:4px;flex-shrink:0;">
-            <button class="btn-lap" onclick="recLap(${c.id})" ${!running?'disabled':''}>+ Lap</button>
-            <button class="btn-finish" onclick="recFinish(${c.id})" ${!running?'disabled':''}>&#9654; Fin</button>
-          </div>`
-        :c.finishTime!==null?`<span class="mono" style="font-size:12px;color:var(--green-txt);flex-shrink:0;">${fmtTimer(c.finishTime)} &#10003;</span>`
-        :`<span style="font-size:11px;color:var(--txt3);flex-shrink:0;">${c.status.toUpperCase()}</span>`}
+      ${statusRow}
     </div>`;}).join('');
 }
 
@@ -1058,6 +1181,7 @@ function render(){
       <div style="margin-top:1rem;border-top:.5px solid var(--border);padding-top:1rem;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
         <button id="undo-btn" onclick="undoLast()" class="btn-purple" style="padding:8px 16px;font-size:12px;" ${S.actionHistory.length===0?'disabled':''}>&#8630; Undo</button>
         <button id="redo-btn" onclick="redoLast()" class="btn-purple" style="padding:8px 16px;font-size:12px;" ${S.redoHistory.length===0?'disabled':''}>&#8631; Redo</button>
+        ${running?`<button onclick="toggleBulkFinish()" class="${S.bulkFinish?'btn-green':'btn-teal'}" style="padding:8px 16px;font-size:12px;">🏁 ${S.bulkFinish?'Bulk ON':'Bulk finish'}</button>`:''}
         ${running&&!S.showLateAdd?`<button onclick="toggleLateAdd()" class="btn-amber" style="padding:8px 16px;font-size:12px;">+ Add competitor</button>`:''}
       </div>`:''}
       <!-- Late add panel -->
@@ -1100,9 +1224,10 @@ function render(){
     </div>
     ${S.shortenedCourse?`<div style="padding:9px 14px;background:var(--purple-bg);border:.5px solid var(--purple-bd);border-radius:var(--radius);margin-bottom:1rem;font-size:13px;color:var(--purple-txt);">Shortened course active — scores normalised using average lap time &times; ${maxLaps} laps (the most completed by any boat)</div>`:''}
     ${S.status!=='idle'&&S.comps.some(c=>c.laps===0&&c.status==='ok')?`<div style="padding:9px 14px;background:var(--amber-bg);border:.5px solid var(--amber-bd);border-radius:var(--radius);margin-bottom:1rem;font-size:13px;color:var(--amber-txt);">Race ended early — ranked by laps completed then corrected time. Zero-lap boats excluded.</div>`:''}
-    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-      <button class="btn-blue" onclick="shareResults()" style="padding:8px 18px;font-size:13px;">&#8679; Share results</button>
-      <button class="btn-teal" onclick="downloadCSV()" style="padding:8px 18px;font-size:13px;">&#8595; Download CSV</button>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+      <button class="btn-blue" onclick="shareResults()" style="padding:8px 18px;font-size:13px;">&#8679; Share</button>
+      <button class="btn-teal" onclick="downloadCSV()" style="padding:8px 18px;font-size:13px;">&#8595; CSV</button>
+      <button class="btn-green" onclick="downloadRYA()" style="padding:8px 18px;font-size:13px;">&#8595; RYA Sheet</button>
     </div>
     <div class="card" style="padding:0;overflow:hidden;overflow-x:auto;margin-bottom:1rem;">
     <table class="res" style="min-width:540px;">
@@ -1118,17 +1243,27 @@ function render(){
         <td class="mono" style="font-weight:700;">${c.sail}</td>
         <td style="color:var(--txt2);font-size:12px;">${c.name}</td>
         <td style="text-align:center;">${c.laps}${S.shortenedCourse&&c.laps<maxLaps?`<span style="font-size:10px;color:var(--purple-txt);"> (→${maxLaps})</span>`:''}</td>
-        <td style="text-align:right;color:var(--txt2);">${c.py}</td>
+        <td style="text-align:right;color:var(--txt2);">
+          ${S.editPYId===c.id
+            ?`<span style="display:inline-flex;align-items:center;gap:3px;">
+                <input id="py-edit-${c.id}" data-id="${c.id}" type="number" value="${S.editPYVal}"
+                  oninput="onEditPYVal(this.value)" onkeydown="onEditPYKey(event)"
+                  style="width:60px;font-size:12px;padding:3px 5px;border:.5px solid var(--blue-bd);border-radius:var(--radius);background:var(--bg);color:var(--txt);">
+                <button onclick="commitEditPY(${c.id})" style="padding:3px 7px;font-size:11px;background:var(--green-bg);color:var(--green-txt);border:.5px solid var(--green-bd);border-radius:var(--radius);">✓</button>
+                <button onclick="cancelEditPY()" style="padding:3px 6px;font-size:11px;">✕</button>
+              </span>`
+            :`<span style="cursor:pointer;" onclick="startEditPY(${c.id})" title="Tap to edit PY">${c.py} ✎</span>`}
+        </td>
         <td><div style="font-size:11px;color:var(--txt2);line-height:1.9;">${lapSplits(c).map(s=>`${s.lbl}: <span class="mono" style="color:var(--txt);">${fmtSplit(s.dur)}</span>`).join('<br>')}</div></td>
         <td class="mono" style="text-align:right;font-size:12px;">${fmtRes(c.eff)}</td>
         <td class="mono" style="text-align:right;font-weight:700;color:${i===0?'var(--amber-txt)':'var(--txt)'};">${c.corr!==null?fmtRes(c.corr):'—'}</td>
       </tr>`).join('')}</tbody>
     </table></div>
-    <!-- OCS/RET list -->
-    ${S.comps.some(c=>c.status==='ocs'||c.status==='ret')?`
+    <!-- OCS/RET/DNS list -->
+    ${S.comps.some(c=>c.status==='ocs'||c.status==='ret'||c.status==='dns')?`
     <div class="card" style="margin-bottom:1rem;">
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--txt2);margin-bottom:8px;">Excluded from results</div>
-      ${S.comps.filter(c=>c.status==='ocs'||c.status==='ret').map(c=>`
+      ${S.comps.filter(c=>c.status==='ocs'||c.status==='ret'||c.status==='dns').map(c=>`
       <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid var(--border);">
         <span class="mono" style="font-weight:700;">${c.sail}</span>
         <span style="flex:1;font-size:13px;color:var(--txt2);">${c.name}</span>
