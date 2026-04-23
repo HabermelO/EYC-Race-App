@@ -311,8 +311,7 @@ function loadState(){
     S.sailInput=sn.sailInput||'';S.classIdx=sn.classIdx||0;
     S.pyInput=sn.pyInput||1103;S.customName=sn.customName||'';S.nextId=sn.nextId||1;
     S.showLateAdd=sn.showLateAdd||false;S.shortenedCourse=sn.shortenedCourse||false;
-    S.rollingFleets=sn.rollingFleets||0;S.currentFleet=sn.currentFleet||0;
-    S.fleetStartTimes=sn.fleetStartTimes||[];S.fleetNames=sn.fleetNames||[];
+
     S.lateSailInput=sn.lateSailInput||'';S.lateClassIdx=sn.lateClassIdx||0;
     S.latePyInput=sn.latePyInput||1103;S.lateCustomName=sn.lateCustomName||'';
     S.actionHistory=sn.actionHistory||[];
@@ -328,7 +327,7 @@ function loadState(){
 // ─────────────────────────────────────────────────────────────────────────────
 let S={
   mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',wxData:null,wxLoading:false,wxError:null,wxFetched:0,wxExpanded:{},calExpanded:{},
-  comps:[],status:'idle',startTime:null,elapsed:0,rollingFleets:0,currentFleet:0,fleetStartTimes:[],fleetNames:[],
+  comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
   showLateAdd:false,shortenedCourse:false,
   lateSailInput:'',lateClassIdx:0,latePyInput:1103,lateCustomName:'',
@@ -410,19 +409,7 @@ function seqTick(){
       if(sec>=-5&&sec<0){beep(660,0.15);}
       if(sec===0){
         beep(880,1.5);
-        S.fleetStartTimes.push(S.elapsed);
-        if(S.rollingFleets>0&&S.currentFleet<S.rollingFleets-1){
-          S.currentFleet++;
-          S.startTime=S.startTime+300000;
-          lastSeqSec=null;
-          saveState();
-          const inst=document.getElementById('seq-inst');
-          if(inst){const nm=S.fleetNames[S.currentFleet]||('Fleet '+(S.currentFleet+1));
-            inst.className='seq-phase action';
-            inst.innerHTML=nm+' sequence — 5 minutes<small>Fleet '+(S.currentFleet)+' gun fired</small>';}
-        } else {
-          setTimeout(()=>{S.status='running';S.currentFleet=0;saveState();render();},500);
-        }
+        setTimeout(()=>{S.status='running';saveState();render();},500);
       }
       const inst=document.getElementById('seq-inst');
       if(inst){const ph=seqPhase(S.elapsed);inst.className='seq-phase '+ph.cls;inst.innerHTML=ph.msg+`<small>${ph.sub}</small>`;}
@@ -633,7 +620,6 @@ window.startSequence=()=>{
   S.elapsed=-300000;
   S.comps.forEach(c=>{c.laps=0;c.finishTime=null;c.lapTimes=[];c.status='ok';c.addedLate=false;});
   S.actionHistory=[];S.redoHistory=[];S.raceNotes='';S.showLateAdd=false;
-  S.currentFleet=0;S.fleetStartTimes=[];
   clearInterval(S.timerRef);
   S.timerRef=setInterval(seqTick,100);
   saveState();render();
@@ -1061,19 +1047,7 @@ function render(){
       ${running?`<div style="font-size:11px;color:var(--green-txt);margin-top:4px;">&#x25CF; Live &nbsp;&middot;&nbsp; Auto-saved</div>`:''}
       <div style="margin-top:1rem;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
         ${idle?`
-          <div style="margin-bottom:1rem;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);text-align:left;">
-            <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Rolling starts</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-              <select onchange="S.rollingFleets=parseInt(this.value);S.currentFleet=0;S.fleetStartTimes=[];S.fleetNames=Array.from({length:parseInt(this.value)||0},(_,i)=>['Fast','Slow','Junior','Cruiser'][i]||'Fleet '+(i+1));saveState();render();" style="width:auto;">
-                <option value="0" ${S.rollingFleets===0?'selected':''}>Off — single start</option>
-                <option value="2" ${S.rollingFleets===2?'selected':''}>2 fleets (Fast + Slow)</option>
-                <option value="3" ${S.rollingFleets===3?'selected':''}>3 fleets</option>
-                <option value="4" ${S.rollingFleets===4?'selected':''}>4 fleets</option>
-              </select>
-              ${S.rollingFleets>0?S.fleetNames.map((n,i)=>`<span style="font-size:12px;padding:3px 8px;background:var(--blue-bg);color:var(--blue-txt);border-radius:99px;">${i+1}. ${n}</span>`).join(''):'<span style="font-size:12px;color:var(--txt3);">Each fleet gets its own 5-min countdown</span>'}
-            </div>
-          </div>
-          <button class="btn-amber" onclick="startSequence()" style="padding:11px 20px;font-size:14px;font-weight:600;">&#9654; ${S.rollingFleets>0?S.fleetNames[0]+' — ':''}5-Min Sequence</button>
+          <button class="btn-amber" onclick="startSequence()" style="padding:11px 20px;font-size:14px;font-weight:600;">&#9654; 5-Min Sequence</button>
           <button class="btn-green" onclick="instantStart()" style="padding:11px 20px;font-size:14px;">&#9654; Quick start</button>
         `:''}'
         ${running?`<button onclick="syncTimer()" style="padding:11px 16px;font-size:13px;font-weight:700;background:var(--blue-bg);color:var(--blue-txt);border:.5px solid var(--blue-bd);border-radius:var(--radius);" title="Snap to nearest minute">&#9654;&#9616; Sync</button><button class="btn-red" onclick="endRace()" style="padding:11px 28px;font-size:15px;font-weight:600;">End race</button><button onclick="resetRace()" style="padding:11px 16px;">Reset</button>`:''}
@@ -1161,7 +1135,7 @@ function render(){
         <span class="badge st-${c.status}">${c.status.toUpperCase()}</span>
       </div>`).join('')}
     </div>`:''}
-    ${S.fleetStartTimes&&S.fleetStartTimes.length>1?`<div style="padding:10px 14px;background:var(--blue-bg);border:.5px solid var(--blue-bd);border-radius:var(--radius);font-size:12px;color:var(--blue-txt);margin-bottom:8px;"><strong>Rolling start guns:</strong> ${S.fleetNames.map((n,i)=>`${n}: ${S.fleetStartTimes[i]!=null?fmtTimer(S.fleetStartTimes[i]):"?"}`).join(" &nbsp;&middot;&nbsp; ")}</div>`:""}
+
     <div style="padding:10px 14px;background:var(--bg2);border-radius:var(--radius);font-size:12px;color:var(--txt2);">Corrected time = elapsed &times; 1000 &divide; PY &nbsp;&middot;&nbsp; Lower = better &nbsp;&middot;&nbsp; RYA PY 2026</div>`}
     <!-- Race notes — always visible in results tab -->
     <div class="card" style="margin-top:1rem;">
