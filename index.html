@@ -1410,189 +1410,157 @@ render();
 })();
 
 
-// === MULTI-RACE INTEGRATION (SURGICAL) ===
-(function(){
-  const MAX_RACES = 10;
-
-  // Preserve original S as initial template
-  let races = JSON.parse(localStorage.getItem("races_integrated_v2")||"null");
-  if(!races){
-    races = [{name:"Race A", state: JSON.parse(JSON.stringify(S))}];
+// ─────────────────────────────────────────────────────────────────────────────
+// HAPTIC FEEDBACK
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('click', e=>{
+  const btn=e.target.closest('button');
+  if(!btn)return;
+  const txt=btn.innerText||'';
+  if(txt.includes('+')||txt.toLowerCase().includes('lap')||txt.toLowerCase().includes('fin')){
+    if(navigator.vibrate)navigator.vibrate(30);
   }
+});
 
-  let activeRace = 0;
+// ─────────────────────────────────────────────────────────────────────────────
+// RACE SLOTS — up to 10 named races, inline rename via pencil button
+// ─────────────────────────────────────────────────────────────────────────────
+const MAX_RACES=10;
+const RACES_KEY='eyc_races_v3';
 
-  function saveRaces(){
-    localStorage.setItem("races_integrated_v2", JSON.stringify(races));
-  }
+let races=JSON.parse(localStorage.getItem(RACES_KEY)||'null');
+if(!races)races=[{name:'Race 1',state:JSON.parse(JSON.stringify(S))}];
+let activeRace=0;
+let editingRace=false;
 
-  function switchRace(i){
-    // save current S into current race
-    races[activeRace].state = JSON.parse(JSON.stringify(S));
-    activeRace = i;
+function saveRaces(){localStorage.setItem(RACES_KEY,JSON.stringify(races));}
 
-    // load new race into S
-    Object.assign(S, JSON.parse(JSON.stringify(races[activeRace].state)));
-
-    saveRaces();
-    render && render();
-  }
-
-  function addRace(){
-    if(races.length>=MAX_RACES) return alert("Max 10 races");
-    const name = prompt("Enter race name:");
-    if(!name) return;
-    races.push({name, state: JSON.parse(JSON.stringify(S))});
-    switchRace(races.length-1);
-  }
-
-  function renderRaceBar(){
-    if(!S || S.mainTab !== 'race') return;
-
-    let container = document.getElementById("race-bar");
-    if(!container){
-      container = document.createElement("div");
-      container.id = "race-bar";
-      container.style.display="flex";
-      container.style.gap="6px";
-      container.style.flexWrap="wrap";
-      container.style.marginBottom="8px";
-
-      // insert near top of race view
-      const target = document.querySelector(".main-tabs")?.nextElementSibling;
-      if(target && target.parentNode){
-        target.parentNode.insertBefore(container, target);
-      } else {
-        document.body.insertBefore(container, document.body.firstChild);
+function switchRace(i){
+  if(i===activeRace&&!editingRace)return;
+  editingRace=false;
+  races[activeRace].state=JSON.parse(JSON.stringify(S));
+  activeRace=i;
+  Object.assign(S,JSON.parse(JSON.stringify(races[activeRace].state)));
+  saveRaces();
+  if(S.status==='running'||S.status==='sequence'){
+    clearInterval(S.timerRef);
+    S.timerRef=setInterval(()=>{
+      if(S.status==='running'||S.status==='sequence'){
+        S.elapsed=S.startTime?Date.now()-S.startTime:0;
+        const el=document.getElementById('tmr');
+        if(el)el.textContent=fmtTimer(S.elapsed);
       }
-    }
-
-    container.innerHTML = "";
-
-    races.forEach((r,i)=>{
-      const b = document.createElement("button");
-      b.textContent = r.name;
-      b.style.padding="6px 10px";
-      b.style.borderRadius="999px";
-      if(i===activeRace){
-        b.style.background="#007bff";
-        b.style.color="#fff";
-      }
-      b.onclick=()=>switchRace(i);
-      container.appendChild(b);
-    });
-
-    const add = document.createElement("button");
-    add.textContent = "+";
-    add.onclick = addRace;
-    container.appendChild(add);
+    },100);
   }
+  if(window.render)render();
+}
 
-  // Hook into render loop
-  const originalRender = window.render;
-  if(originalRender){
-    window.render = function(){
-      originalRender.apply(this, arguments);
-      renderRaceBar();
-    }
+function addRace(){
+  if(races.length>=MAX_RACES){alert('Maximum '+MAX_RACES+' races reached.');return;}
+  races[activeRace].state=JSON.parse(JSON.stringify(S));
+  const fresh=JSON.parse(JSON.stringify(races[0].state));
+  fresh.status='idle';fresh.elapsed=0;fresh.startTime=null;
+  fresh.comps=[];fresh.actionHistory=[];fresh.redoHistory=[];
+  fresh.raceNotes='';fresh.sailInput='';
+  const name='Race '+(races.length+1);
+  races.push({name,state:fresh});
+  activeRace=races.length-1;
+  Object.assign(S,JSON.parse(JSON.stringify(races[activeRace].state)));
+  saveRaces();
+  if(window.render)render();
+}
+
+function startRename(){
+  editingRace=true;
+  renderRaceBar();
+  setTimeout(()=>{
+    const inp=document.getElementById('race-rename-input');
+    if(inp){inp.focus();inp.select();}
+  },30);
+}
+
+function commitRename(){
+  const inp=document.getElementById('race-rename-input');
+  if(inp){const val=inp.value.trim();if(val)races[activeRace].name=val;}
+  editingRace=false;
+  saveRaces();
+  renderRaceBar();
+}
+
+function cancelRename(){editingRace=false;renderRaceBar();}
+
+function deleteRace(){
+  if(races.length<=1){alert('Cannot delete the only race.');return;}
+  if(!confirm('Delete "'+races[activeRace].name+'"?'))return;
+  races.splice(activeRace,1);
+  activeRace=Math.min(activeRace,races.length-1);
+  Object.assign(S,JSON.parse(JSON.stringify(races[activeRace].state)));
+  saveRaces();
+  if(window.render)render();
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderRaceBar(){
+  if(!S||S.mainTab!=='race')return;
+  let bar=document.getElementById('race-bar');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='race-bar';
+    const target=document.querySelector('.main-tabs')?.nextElementSibling;
+    if(target&&target.parentNode)target.parentNode.insertBefore(bar,target);
+    else document.getElementById('app')?.prepend(bar);
+  }
+  bar.style.cssText='margin-bottom:10px;background:var(--bg);border:.5px solid var(--border);border-radius:12px;padding:6px 8px;';
+
+  if(editingRace){
+    bar.innerHTML=
+      '<div style="display:flex;align-items:center;gap:6px;">'
+        +'<input id="race-rename-input" value="'+escHtml(races[activeRace].name)+'" '
+          +'style="flex:1;min-width:0;font-size:14px;font-weight:600;padding:6px 10px;border:.5px solid var(--blue-bd);border-radius:8px;background:var(--bg);color:var(--txt);outline:none;" '
+          +'onkeydown="if(event.key===\'Enter\')commitRename();if(event.key===\'Escape\')cancelRename();">'
+        +'<button onclick="commitRename()" style="padding:6px 14px;border-radius:8px;background:var(--green-bg);color:var(--green-txt);border:.5px solid var(--green-bd);font-size:13px;font-weight:600;">Save</button>'
+        +'<button onclick="cancelRename()" style="padding:6px 10px;border-radius:8px;font-size:13px;color:var(--txt2);">Cancel</button>'
+      +'</div>';
   } else {
-    // fallback
-    document.addEventListener("DOMContentLoaded", renderRaceBar);
-  }
-
-})();
-
-
-// === HAPTIC FEEDBACK ON LAP TAP ===
-(function(){
-  function vibrate(){
-    if(navigator.vibrate){
-      navigator.vibrate(10);
-    }
-  }
-
-  // Hook all click events on lap buttons via delegation
-  document.addEventListener("click", function(e){
-    const btn = e.target.closest("button");
-    if(!btn) return;
-
-    // Heuristic: lap buttons usually contain "+" or "Lap"
-    const txt = btn.innerText || "";
-    if(txt.includes("+") || txt.toLowerCase().includes("lap")){
-      vibrate();
-    }
-  });
-})();
-
-
-// === RENAME RACE FEATURE ===
-(function(){
-  // Hook into existing race bar buttons after render
-  function enhanceRaceRename(){
-    const container = document.getElementById("race-bar");
-    if(!container) return;
-
-    [...container.querySelectorAll("button")].forEach((btn, idx)=>{
-      if(btn.textContent === "+") return;
-
-      let timer;
-      btn.addEventListener("mousedown", ()=>{
-        timer = setTimeout(()=>{
-          const newName = prompt("Rename race:", btn.textContent);
-          if(newName){
-            const races = JSON.parse(localStorage.getItem("races_integrated_v2")||"[]");
-            if(races[idx]){
-              races[idx].name = newName;
-              localStorage.setItem("races_integrated_v2", JSON.stringify(races));
-              btn.textContent = newName;
-            }
-          }
-        }, 600);
-      });
-      btn.addEventListener("mouseup", ()=> clearTimeout(timer));
-      btn.addEventListener("mouseleave", ()=> clearTimeout(timer));
+    let h='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">';
+    races.forEach((r,i)=>{
+      const active=i===activeRace;
+      const isRunning=active&&S.status==='running';
+      h+='<button onclick="switchRace('+i+')" style="'
+        +'padding:6px 12px;border-radius:99px;border:.5px solid '+(active?'var(--blue-bd)':'var(--border)')+';'
+        +'background:'+(active?'var(--blue-bg)':'var(--bg2)')+';'
+        +'color:'+(active?'var(--blue-txt)':'var(--txt2)')+';'
+        +'font-size:13px;font-weight:'+(active?'700':'500')+';'
+        +'display:inline-flex;align-items:center;gap:5px;">'
+        +(isRunning?'<span style="color:var(--green-txt);font-size:10px;">&#x25CF;</span>':'')
+        +escHtml(r.name)+'</button>';
     });
-  }
-
-  // hook after render
-  const origRender = window.render;
-  if(origRender){
-    window.render = function(){
-      origRender.apply(this, arguments);
-      setTimeout(enhanceRaceRename, 0);
+    // Pencil — rename active race
+    h+='<button onclick="startRename()" title="Rename this race" style="padding:6px 9px;border-radius:99px;border:.5px solid var(--border);background:var(--bg2);font-size:14px;color:var(--txt2);">&#9998;</button>';
+    // Delete — only if more than one race
+    if(races.length>1){
+      h+='<button onclick="deleteRace()" title="Delete this race" style="padding:6px 9px;border-radius:99px;border:.5px solid var(--border);background:var(--bg2);font-size:14px;color:var(--red-txt);">&#10005;</button>';
     }
-  }
-})();
-
-
-// === ADD PENCIL ICON TO ACTIVE RACE ===
-(function(){
-  function addPencilIcon(){
-    const container = document.getElementById("race-bar");
-    if(!container) return;
-
-    const buttons = container.querySelectorAll("button");
-    buttons.forEach(btn=>{
-      if(btn.textContent.trim() === "+") return;
-      // remove existing icon if any
-      btn.innerHTML = btn.textContent.replace(" ✏️","");
-
-    });
-
-    const active = [...buttons].find(b => b.style.background === "rgb(0, 123, 255)" || b.style.background === "#007bff");
-    if(active){
-      active.innerHTML = active.textContent + " ✏️";
+    // Add race
+    if(races.length<MAX_RACES){
+      h+='<button onclick="addRace()" title="Add race" style="padding:6px 11px;border-radius:99px;border:.5px solid var(--green-bd);background:var(--green-bg);color:var(--green-txt);font-size:16px;font-weight:700;line-height:1;">+</button>';
     }
+    h+='</div>';
+    bar.innerHTML=h;
   }
+}
 
-  const origRender = window.render;
-  if(origRender){
-    window.render = function(){
-      origRender.apply(this, arguments);
-      setTimeout(addPencilIcon, 0);
-    }
-  }
-})();
+// Hook into render loop
+const _origRender=window.render;
+if(_origRender){
+  window.render=function(){
+    _origRender.apply(this,arguments);
+    renderRaceBar();
+  };
+}
 
 </script>
 </body>
