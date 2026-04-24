@@ -296,7 +296,7 @@ function saveState(){
       lateSailInput:S.lateSailInput,lateClassIdx:S.lateClassIdx,
       latePyInput:S.latePyInput,lateCustomName:S.lateCustomName,
       actionHistory:S.actionHistory,redoHistory:S.redoHistory,raceNotes:S.raceNotes,
-      bulkFinish:S.bulkFinish
+      bulkFinish:S.bulkFinish,rollingStarts:S.rollingStarts
     }));
     const pill=document.getElementById('save-pill');
     if(pill){pill.style.opacity='1';clearTimeout(savePillTimer);savePillTimer=setTimeout(()=>{pill.style.opacity='0';},1500);}
@@ -320,6 +320,7 @@ function loadState(){
     S.redoHistory=sn.redoHistory||[];
     S.raceNotes=sn.raceNotes||'';
     S.bulkFinish=sn.bulkFinish||false;
+    S.rollingStarts=sn.rollingStarts||false;
     if(S.status==='running'&&S.startTime)S.elapsed=Date.now()-S.startTime;
     if(S.status==='sequence'&&S.startTime)S.elapsed=Date.now()-S.startTime;
   }catch(e){}
@@ -332,7 +333,7 @@ let S={
   mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',wxData:null,wxLoading:false,wxError:null,wxFetched:0,wxExpanded:{},calExpanded:{},
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
-  showLateAdd:false,shortenedCourse:false,bulkFinish:false,
+  showLateAdd:false,shortenedCourse:false,bulkFinish:false,rollingStarts:false,
   editPYId:null,editPYVal:'',
   lateSailInput:'',lateClassIdx:0,latePyInput:1103,lateCustomName:'',
   actionHistory:[],   // [{type,id,lap,finishTime,lapTimes,status,py}]
@@ -413,7 +414,44 @@ function seqTick(){
       if(sec>=-5&&sec<0){beep(660,0.15);}
       if(sec===0){
         beep(880,1.5);
-        setTimeout(()=>{S.status='running';saveState();render();},500);
+        // Rolling start: if enabled, kick off next race's 5-min sequence the moment this gun fires
+        const nextIdx=activeRace+1;
+        const doRolling=S.rollingStarts&&nextIdx<races.length&&races[nextIdx].state.status==='idle';
+        if(doRolling){
+          setTimeout(()=>{
+            // 1. Freeze current race as "running" from now
+            const gunTime=Date.now();
+            races[activeRace].state=JSON.parse(JSON.stringify(S));
+            races[activeRace].state.status='running';
+            races[activeRace].state.startTime=gunTime;
+            races[activeRace].state.elapsed=0;
+
+            // 2. Prepare next race — copy competitor list (fresh times) from current race
+            const prevComps=races[activeRace].state.comps.map(c=>({
+              ...c,laps:0,finishTime:null,lapTimes:[],addedLate:false,status:'ok'
+            }));
+            const nextState=JSON.parse(JSON.stringify(races[nextIdx].state));
+            // Only copy comps if next race has none yet
+            if(nextState.comps.length===0)nextState.comps=prevComps;
+
+            // 3. Switch to next race and start its 5-min sequence
+            activeRace=nextIdx;
+            Object.assign(S,nextState);
+            initAudio();
+            S.status='sequence';
+            S.startTime=Date.now()+300000; // gun exactly 5 min from now
+            S.elapsed=-300000;
+            S.rollingStarts=true; // carry rolling flag forward
+            S.actionHistory=[];S.redoHistory=[];S.raceNotes='';S.showLateAdd=false;
+            clearInterval(S.timerRef);
+            lastSeqSec=null;
+            S.timerRef=setInterval(seqTick,100);
+            saveRaces();saveState();render();
+            renderRaceBar();
+          },500);
+        } else {
+          setTimeout(()=>{S.status='running';saveState();render();},500);
+        }
       }
       const inst=document.getElementById('seq-inst');
       if(inst){const ph=seqPhase(S.elapsed);inst.className='seq-phase '+ph.cls;inst.innerHTML=ph.msg+`<small>${ph.sub}</small>`;}
@@ -677,6 +715,11 @@ window.onEditPYKey=e=>{if(e.key==='Enter')commitEditPY(parseInt(e.target.dataset
 
 // Bulk finish mode
 window.toggleBulkFinish=()=>{S.bulkFinish=!S.bulkFinish;saveState();renderRaceList();updateBulkButton();};
+window.toggleRollingStarts=()=>{
+  S.rollingStarts=!S.rollingStarts;
+  if(S.rollingStarts&&activeRace===races.length-1&&races.length<MAX_RACES){addRace();}
+  saveState();render();renderRaceBar();
+};
 window.bulkFinishNext=()=>{
   if(S.status!=='running')return;
   // Find first unfinished, non-excluded boat in current sorted order
@@ -1111,6 +1154,7 @@ function render(){
     <button class="main-tab ${S.mainTab==='calendar'?'active':''}" onclick="setMain('calendar')">&#128197; Calendar</button>
     <button class="main-tab ${S.mainTab==='courses'?'active':''}" onclick="setMain('courses')">&#127981; Courses</button>
     <button class="main-tab ${S.mainTab==='weather'?'active':''}" onclick="setMain('weather')">&#9928; Weather</button>
+    <button class="main-tab ${S.mainTab==='resources'?'active':''}" onclick="setMain('resources')">&#128278; Links</button>
   </div>
 
   <!-- ═══════ RACE SECTION ═══════ -->
@@ -1176,6 +1220,20 @@ function render(){
         ${running?`<button onclick="syncTimer()" style="padding:11px 16px;font-size:13px;font-weight:700;background:var(--blue-bg);color:var(--blue-txt);border:.5px solid var(--blue-bd);border-radius:var(--radius);" title="Snap to nearest minute">&#9654;&#9616; Sync</button><button class="btn-red" onclick="endRace()" style="padding:11px 28px;font-size:15px;font-weight:600;">End race</button><button onclick="resetRace()" style="padding:11px 16px;">Reset</button>`:''}
         ${finished?`<button class="btn-green" onclick="setRaceTab('results')" style="padding:11px 28px;font-size:15px;font-weight:600;">View results &rarr;</button><button onclick="resetRace()" style="padding:11px 16px;">Reset</button>`:''}
       </div>
+      <!-- Rolling starts toggle — shown when idle, info badge when active -->
+      ${idle?`
+      <div style="margin-top:12px;border-top:.5px solid var(--border);padding-top:12px;">
+        <div style="display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button onclick="toggleRollingStarts()" style="padding:8px 18px;font-size:13px;font-weight:600;border-radius:99px;border:.5px solid ${S.rollingStarts?'var(--blue-bd)':'var(--border2)'};background:${S.rollingStarts?'var(--blue-bg)':'var(--bg2)'};color:${S.rollingStarts?'var(--blue-txt)':'var(--txt2)'};">
+            &#9654;&#9654; Rolling starts ${S.rollingStarts?'ON':'OFF'}
+          </button>
+          ${S.rollingStarts?`<span style="font-size:12px;color:var(--blue-txt);">Next race (${races[activeRace+1]?races[activeRace+1].name:'—'}) will auto-sequence at gun</span>`:'<span style="font-size:12px;color:var(--txt3);">Auto-start next race\'s 5-min sequence at the gun</span>'}
+        </div>
+      </div>`:
+      (S.rollingStarts&&(running||sequence))?`
+      <div style="margin-top:10px;padding:7px 14px;background:var(--blue-bg);border:.5px solid var(--blue-bd);border-radius:var(--radius);font-size:12px;color:var(--blue-txt);text-align:center;">
+        &#9654;&#9654; Rolling starts active — ${races[activeRace+1]?`<strong>${races[activeRace+1].name}</strong> sequences at the gun`:'no next race to roll into'}
+      </div>`:''}
       <!-- Undo + Redo + Add mid-race — shown during race AND after finish -->
       ${(running||finished)?`
       <div style="margin-top:1rem;border-top:.5px solid var(--border);padding-top:1rem;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
@@ -1468,6 +1526,34 @@ function render(){
   </div>
   ${renderWeatherSection()}
   `:''}
+
+  <!-- ═══════ RESOURCES SECTION ═══════ -->
+  ${S.mainTab==='resources'?`
+  <div style="margin-bottom:1rem;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px;">Resources</div>
+    <div style="font-size:12px;color:var(--txt2);">Useful links for EYC race officers and sailors</div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+
+    <!-- EYC Website -->
+    <a href="https://www.essexyachtclub.co.uk" target="_blank" rel="noopener"
+       style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--bg);border:.5px solid var(--border);border-radius:var(--radius-lg);text-decoration:none;color:inherit;-webkit-tap-highlight-color:transparent;">
+      <div style="width:44px;height:44px;border-radius:10px;background:var(--red-bg);border:.5px solid var(--red-bd);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">&#9875;</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:15px;margin-bottom:2px;">Essex Yacht Club</div>
+        <div style="font-size:12px;color:var(--txt2);">essexyachtclub.co.uk</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:2px;">Club news, notices, member info</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--txt3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,3 13,3 13,10"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+    </a>
+
+  </div>
+
+  <div style="margin-top:1.5rem;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);font-size:12px;color:var(--txt3);">
+    Links open in your browser. Tap the &#128278; Links tab to return here.
+  </div>
+  `:''}
   `;
 
 
@@ -1489,7 +1575,7 @@ render();
   let startX = 0;
   let startY = 0;
 
-  const TAB_ORDER = ['race','calendar','courses','weather'];
+  const TAB_ORDER = ['race','calendar','courses','weather','resources'];
 
   document.addEventListener("touchstart", (e)=>{
     const t = e.touches[0];
@@ -1637,15 +1723,25 @@ function renderRaceBar(){
     let h='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">';
     races.forEach((r,i)=>{
       const active=i===activeRace;
-      const isRunning=active&&S.status==='running';
+      const st=i===activeRace?S.status:r.state.status;
+      const isRunning=st==='running';
+      const isSequence=st==='sequence';
+      const isFinished=st==='finished';
+      const isNextUp=!active&&st==='idle'&&i===activeRace+1&&(S.status==='running'||S.status==='sequence');
+      const isRollingNext=isNextUp&&S.rollingStarts;
+      let dot='';
+      if(isRunning)dot='<span style="color:var(--green-txt);font-size:10px;margin-right:3px;">&#x25CF;</span>';
+      else if(isSequence)dot='<span style="color:var(--amber-txt);font-size:10px;margin-right:3px;">&#x25CF;</span>';
+      else if(isFinished)dot='<span style="color:var(--txt3);font-size:10px;margin-right:3px;">&#10003;</span>';
+      else if(isRollingNext)dot='<span style="color:var(--blue-txt);font-size:10px;margin-right:3px;">&#9654;&#9654;</span>';
+      else if(isNextUp)dot='<span style="color:var(--blue-txt);font-size:10px;margin-right:3px;">&#9658;</span>';
       h+='<button onclick="switchRace('+i+')" style="'
-        +'padding:6px 12px;border-radius:99px;border:.5px solid '+(active?'var(--blue-bd)':'var(--border)')+';'
-        +'background:'+(active?'var(--blue-bg)':'var(--bg2)')+';'
-        +'color:'+(active?'var(--blue-txt)':'var(--txt2)')+';'
-        +'font-size:13px;font-weight:'+(active?'700':'500')+';'
-        +'display:inline-flex;align-items:center;gap:5px;">'
-        +(isRunning?'<span style="color:var(--green-txt);font-size:10px;">&#x25CF;</span>':'')
-        +escHtml(r.name)+'</button>';
+        +'padding:6px 12px;border-radius:99px;border:.5px solid '+(active?'var(--blue-bd)':isRollingNext?'var(--blue-bd)':'var(--border)')+';'
+        +'background:'+(active?'var(--blue-bg)':isRollingNext?'var(--blue-bg)':'var(--bg2)')+';'
+        +'color:'+(active?'var(--blue-txt)':isRollingNext?'var(--blue-txt)':'var(--txt2)')+';'
+        +'font-size:13px;font-weight:'+(active||isRollingNext?'700':'500')+';'
+        +'display:inline-flex;align-items:center;">'
+        +dot+escHtml(r.name)+'</button>';
     });
     // Pencil — rename active race
     h+='<button onclick="startRename()" title="Rename this race" style="padding:6px 9px;border-radius:99px;border:.5px solid var(--border);background:var(--bg2);font-size:14px;color:var(--txt2);">&#9998;</button>';
