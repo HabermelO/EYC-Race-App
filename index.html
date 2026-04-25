@@ -195,6 +195,17 @@ const COURSES=[
   {n:"28",seq:"J(S)–HR(P)–HRE(P)–W(S)–DM(S)", dir:"E", laps:4, rnd:"S&P"},
 ];
 
+const OFFSHORE_COURSES=[
+  {n:"A", seq:"CO – RS – DM – ME – R – DM – J – R – DM", dir:"W–E", laps:1, rnd:"S"},
+  {n:"B", seq:"J(s) – CO(s) – RS(s) – J(p) – DM(s) – RS(p) – J(p) – DM(p)", dir:"W–E", laps:1, rnd:"P&S"},
+  {n:"C", seq:"CO – WLM – DM – ME – RS – DM", dir:"W–E", laps:1, rnd:"S"},
+  {n:"D", seq:"L(s) – RS(s) – DM(s) – CO(s) – RS(s) – J(p) – DM(p)", dir:"W–E", laps:1, rnd:"P&S"},
+  {n:"E", seq:"J(s) – WLM(p) – L(p) – DM(p) – RS(p) – J(p) – DM(P)", dir:"W–E", laps:1, rnd:"P&S"},
+  {n:"F", seq:"CO(s) – C(s) – RS(p) – DM(s) – CO(s) – RS(s) – J(p) – DM(p)", dir:"W–E", laps:1, rnd:"P&S"},
+  {n:"H", seq:"L(s) – C(s) – RS(p) – DM(s) – ME(s) – R(s) – DM(s)", dir:"W–E", laps:1, rnd:"P&S"},
+  {n:"K", seq:"CO(s) – C(p) – L(p) – DM(p) – R(p) – ME(p) – DM(p)", dir:"W–E", laps:1, rnd:"P&S"},
+];
+
 // EYC 2026 PROGRAMME — full list, start times fully explicit
 const PROG=[
   {d:"2026-02-15",lbl:"Sun 15 Feb",hw:"11:22",ht:5.05,tender:false,events:"Valentines Day Race",starts:"All-in 10:20",loc:"EYC"},
@@ -1495,7 +1506,8 @@ function render(){
   <!-- ═══════ COURSES SECTION ═══════ -->
   ${S.mainTab==='courses'?`
   <div class="sub-tabs">
-    <button class="sub-tab ${S.courseTab==='courses'?'active':''}" onclick="setCourseTab('courses')">Course Card</button>
+    <button class="sub-tab ${S.courseTab==='courses'?'active':''}" onclick="setCourseTab('courses')">Inshore</button>
+    <button class="sub-tab ${S.courseTab==='offshore'?'active':''}" onclick="setCourseTab('offshore')">Offshore</button>
     <button class="sub-tab ${S.courseTab==='chart'?'active':''}" onclick="setCourseTab('chart')">Chart</button>
     <button class="sub-tab ${S.courseTab==='marks'?'active':''}" onclick="setCourseTab('marks')">Marks Key</button>
   </div>
@@ -1528,7 +1540,37 @@ function render(){
     <div style="margin-top:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);font-size:12px;color:var(--txt2);">DM = Distance Mark — position set by race officer on the day. For courses 25–28 parenthetical marks e.g. R(P) indicate individual rounding direction.</div>
   `:''}
 
+  ${S.courseTab==='offshore'?`
+    <div style="margin-bottom:10px;padding:10px 14px;background:var(--amber-bg);border:.5px solid var(--amber-bd);border-radius:var(--radius);font-size:13px;color:var(--amber-txt);">
+      2022 EYC / LSC Offshore Course Card &nbsp;&middot;&nbsp;
+      <strong>s</strong> = starboard rounding &nbsp;&middot;&nbsp;
+      <strong>p</strong> = port rounding &nbsp;&middot;&nbsp;
+      <strong>P&amp;S</strong> = both
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;overflow-x:auto;">
+    <table class="courses">
+      <thead><tr>
+        <th style="width:36px;">#</th>
+        <th>Mark sequence</th>
+        <th style="width:56px;text-align:center;">Start Dir</th>
+        <th style="width:44px;text-align:center;">Laps</th>
+        <th style="width:64px;text-align:center;">Rounding</th>
+      </tr></thead>
+      <tbody>${OFFSHORE_COURSES.map((c,i)=>`<tr style="background:${i%2===0?'var(--bg)':'var(--bg2)'};">
+        <td style="font-weight:700;font-size:15px;color:var(--amber-txt);text-align:center;">${c.n}</td>
+        <td class="mono" style="font-size:12px;line-height:1.8;">${c.seq}</td>
+        <td style="text-align:center;font-weight:600;font-size:12px;">${c.dir}</td>
+        <td style="text-align:center;">${c.laps}</td>
+        <td style="text-align:center;"><span class="badge" style="background:var(--${c.rnd==='S'?'green':c.rnd.includes('&')?'amber':'red'}-bg);color:var(--${c.rnd==='S'?'green':c.rnd.includes('&')?'amber':'red'}-txt);">${c.rnd}</span></td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+    <div style="margin-top:10px;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);font-size:12px;color:var(--txt2);">
+      All offshore courses start W–E and are sailed once. DM = Distance Mark (position set by race officer). Key marks: CO = Chalkwell/Ovens &middot; RS = Red Sand &middot; ME = Maplin East &middot; R = Ribble &middot; J = Jenkin &middot; L = Leigh &middot; C = Chapman &middot; WLM = West Leigh Middle.
+    </div>
+  `:''}
+
   ${S.courseTab==='chart'?`
+
     <div class="card" style="padding:0.5rem;text-align:center;">
       <div style="font-size:13px;font-weight:600;margin-bottom:0.5rem;color:var(--txt2);">Essex Yacht Club Course Card 2019</div>
       <img src="${CHART_SRC}" alt="EYC Course Chart showing mark positions" style="width:100%;max-width:800px;border-radius:var(--radius);border:.5px solid var(--border);">
