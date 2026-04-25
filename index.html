@@ -327,6 +327,18 @@ function loadState(){
     S.raceNotes=sn.raceNotes||'';
     S.bulkFinish=sn.bulkFinish||false;
     S.rollingStarts=sn.rollingStarts||false;
+    // Restore cached weather data from separate localStorage key
+    try{
+      const wxRaw=localStorage.getItem('eyc_wx_cache');
+      if(wxRaw){
+        const wxSaved=JSON.parse(wxRaw);
+        if(wxSaved&&wxSaved.data){
+          S.wxData=wxSaved.data;
+          S.wxFetched=wxSaved.fetched||0;
+          S.wxStale=true; // treat restored data as stale until a fresh fetch succeeds
+        }
+      }
+    }catch(e){}
     if(S.status==='running'&&S.startTime)S.elapsed=Date.now()-S.startTime;
     if(S.status==='sequence'&&S.startTime)S.elapsed=Date.now()-S.startTime;
   }catch(e){}
@@ -348,7 +360,7 @@ let S={
 };
 loadState();
 // Auto-fetch weather in background if no fresh data and online
-if(navigator.onLine && (!S.wxData || Date.now()-S.wxFetched > 1800000)){
+if(navigator.onLine && (!S.wxData || S.wxStale || Date.now()-S.wxFetched > 1800000)){
   fetchWeather();
 }
 
@@ -998,6 +1010,8 @@ async function fetchWeather(){
     S.wxFetched=Date.now();
     S.wxLoading=false;
     S.wxStale=false;
+    // Persist weather data so it survives app restarts offline
+    try{localStorage.setItem('eyc_wx_cache',JSON.stringify({data:S.wxData,fetched:S.wxFetched}));}catch(e){}
   }catch(e){
     S.wxLoading=false;
     if(!navigator.onLine && S.wxData){
@@ -1066,7 +1080,11 @@ function renderWeatherSection(){
   const h=S.wxData.hourly;
   const days=d.time.slice(0,4);
   const fetched=new Date(S.wxFetched).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-  const staleBanner=S.wxStale?'<div style="padding:8px 14px;background:var(--amber-bg);border:.5px solid var(--amber-bd);border-radius:var(--radius);color:var(--amber-txt);font-size:12px;font-weight:600;margin-bottom:12px;">&#9888; Offline — showing cached forecast from '+fetched+'</div>':'';
+  const fetchedDate=new Date(S.wxFetched);
+  const fetchedLabel=(Date.now()-S.wxFetched>86400000)
+    ?fetchedDate.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' '+fetchedDate.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})
+    :fetched;
+  const staleBanner=S.wxStale?'<div style="padding:8px 14px;background:var(--amber-bg);border:.5px solid var(--amber-bd);border-radius:var(--radius);color:var(--amber-txt);font-size:12px;font-weight:600;margin-bottom:12px;">&#9888; Offline — showing cached forecast from '+fetchedLabel+'</div>':'';
 
   const cards=days.map((date,i)=>{
     const kn=Math.round(d.windspeed_10m_max[i]);
