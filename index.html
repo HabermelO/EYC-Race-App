@@ -306,7 +306,7 @@ let savePillTimer=null;
 function saveState(){
   try{
     localStorage.setItem(LS_KEY,JSON.stringify({
-      mainTab:S.mainTab,raceTab:S.raceTab,calFilter:S.calFilter,courseTab:S.courseTab,
+      mainTab:S.mainTab,raceTab:S.raceTab,calFilter:S.calFilter,courseTab:S.courseTab,resultsTab:S.resultsTab,
       comps:S.comps,status:S.status,startTime:S.startTime,elapsed:S.elapsed,
       sailInput:S.sailInput,classIdx:S.classIdx,pyInput:S.pyInput,customName:S.customName,
       nextId:S.nextId,showLateAdd:S.showLateAdd,shortenedCourse:S.shortenedCourse,
@@ -324,7 +324,7 @@ function loadState(){
     const raw=localStorage.getItem(LS_KEY);if(!raw)return;
     const sn=JSON.parse(raw);
     S.mainTab=sn.mainTab||'race';S.raceTab=sn.raceTab||'competitors';
-    S.calFilter=sn.calFilter||'all';S.courseTab=sn.courseTab||'courses';
+    S.calFilter=sn.calFilter||'all';S.courseTab=sn.courseTab||'courses';S.resultsTab=sn.resultsTab||'bfleet';
     S.comps=sn.comps||[];S.status=sn.status||'idle';
     S.startTime=sn.startTime||null;S.elapsed=sn.elapsed||0;
     S.sailInput=sn.sailInput||'';S.classIdx=sn.classIdx||0;
@@ -359,7 +359,7 @@ function loadState(){
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 let S={
-  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
+  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',resultsTab:'bfleet',wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
   showLateAdd:false,shortenedCourse:false,bulkFinish:false,rollingStarts:false,
@@ -683,6 +683,7 @@ function fmtRYATime(ms){
 // ACTIONS
 // ─────────────────────────────────────────────────────────────────────────────
 window.setMain=t=>{S.mainTab=t;saveState();if(t==='weather')fetchWeather();else{if(t==='calendar'&&navigator.onLine&&(!S.wxData||Date.now()-S.wxFetched>1800000))fetchWeather();render();}};
+window.setResultsTab=t=>{S.resultsTab=t;saveState();render();};
 window.setRaceTab=t=>{S.raceTab=t;saveState();render();};
 window.setFilter=f=>{S.calFilter=f;saveState();render();};
 window.toggleCal=d=>{
@@ -1200,6 +1201,7 @@ function render(){
     <button class="main-tab ${S.mainTab==='race'?'active':''}" onclick="setMain('race')">&#9873; <span class="tab-lbl">Race</span></button>
     <button class="main-tab ${S.mainTab==='calendar'?'active':''}" onclick="setMain('calendar')">&#128197; <span class="tab-lbl">Calendar</span></button>
     <button class="main-tab ${S.mainTab==='courses'?'active':''}" onclick="setMain('courses')">&#129517; <span class="tab-lbl">Courses</span></button>
+    <button class="main-tab ${S.mainTab==='results'?'active':''}" onclick="setMain('results')">&#127942; <span class="tab-lbl">Results</span></button>
     <button class="main-tab ${S.mainTab==='weather'?'active':''}" onclick="setMain('weather')">&#9928; <span class="tab-lbl">Weather</span></button>
     <button class="main-tab ${S.mainTab==='resources'?'active':''}" onclick="setMain('resources')">&#128278; <span class="tab-lbl">Links</span></button>
   </div>
@@ -1594,6 +1596,51 @@ function render(){
   `:''}
 
   `:''}
+  ${S.mainTab==='results'?`
+  <div style="margin-bottom:1rem;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:2px;">Series Results</div>
+    <div style="font-size:12px;color:var(--txt2);">Live from essexyachtclub.co.uk</div>
+  </div>
+
+  <div class="sub-tabs" style="margin-bottom:1rem;">
+    <button class="sub-tab ${S.resultsTab==='bfleet'?'active':''}" onclick="setResultsTab('bfleet')">B Fleet Spring</button>
+    <button class="sub-tab ${S.resultsTab==='eod'?'active':''}" onclick="setResultsTab('eod')">EOD</button>
+    <button class="sub-tab ${S.resultsTab==='cruiser'?'active':''}" onclick="setResultsTab('cruiser')">Cruiser</button>
+  </div>
+
+  ${S.resultsTab==='bfleet'?`
+  <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
+    <iframe
+      src="https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm"
+      style="width:100%;height:calc(100vh - 260px);min-height:500px;border:none;display:block;"
+      loading="lazy"
+      title="B Fleet Spring Series 2026 Results">
+    </iframe>
+  </div>
+  <div style="margin-top:8px;text-align:center;">
+    <a href="https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm" target="_blank" rel="noopener"
+       style="font-size:12px;color:var(--blue-txt);text-decoration:none;">
+      &#8599; Open full page in browser
+    </a>
+  </div>
+  `:''}
+
+  ${S.resultsTab==='eod'?`
+  <div style="border-radius:var(--radius-lg);border:.5px solid var(--border);background:var(--bg);padding:2rem 1.5rem;text-align:center;">
+    <div style="font-size:32px;margin-bottom:12px;">&#9971;</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:6px;">EOD Results</div>
+    <div style="font-size:13px;color:var(--txt2);line-height:1.5;">Results link not yet set up.<br>Add the URL to see results here.</div>
+  </div>
+  `:''}
+
+  ${S.resultsTab==='cruiser'?`
+  <div style="border-radius:var(--radius-lg);border:.5px solid var(--border);background:var(--bg);padding:2rem 1.5rem;text-align:center;">
+    <div style="font-size:32px;margin-bottom:12px;">&#9875;</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:6px;">Cruiser Results</div>
+    <div style="font-size:13px;color:var(--txt2);line-height:1.5;">Results link not yet set up.<br>Add the URL to see results here.</div>
+  </div>
+  `:''}
+  `:''}\n
   ${S.mainTab==='weather'?`
   <div style="margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;">
     <div>
@@ -1677,7 +1724,7 @@ render();
   let startX = 0;
   let startY = 0;
 
-  const TAB_ORDER = ['race','calendar','courses','weather','resources'];
+  const TAB_ORDER = ['race','calendar','courses','results','weather','resources'];
 
   document.addEventListener("touchstart", (e)=>{
     const t = e.touches[0];
