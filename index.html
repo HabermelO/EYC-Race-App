@@ -1706,12 +1706,13 @@ function render(){
 
 render();
 
-// === SWIPE BETWEEN MAIN TABS (SAFE INTEGRATION) ===
+// === SWIPE BETWEEN TABS (MAIN + RACE SUB-TABS) ===
 (function(){
   let startX = 0;
   let startY = 0;
 
-  const TAB_ORDER = ['race','calendar','courses','results','weather','resources'];
+  const MAIN_TABS  = ['race','calendar','courses','results','weather','resources'];
+  const RACE_TABS  = ['competitors','race','results','flags'];
 
   document.addEventListener("touchstart", (e)=>{
     const t = e.touches[0];
@@ -1724,18 +1725,30 @@ render();
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
 
+    // Must be more horizontal than vertical, and long enough
     if(Math.abs(dy) > Math.abs(dx)) return;
     if(Math.abs(dx) < 50) return;
 
-    const currentIndex = TAB_ORDER.indexOf(S.mainTab);
-    if(currentIndex === -1) return;
-
-    if(dx < 0 && currentIndex < TAB_ORDER.length - 1){
-      setMain(TAB_ORDER[currentIndex + 1]);
+    // If we're inside the Race section, swipe the race sub-tabs
+    // and do NOT also flip the main tab.
+    if(S.mainTab === 'race'){
+      const raceIdx = RACE_TABS.indexOf(S.raceTab);
+      if(raceIdx === -1) return;
+      if(dx < 0 && raceIdx < RACE_TABS.length - 1){
+        setRaceTab(RACE_TABS[raceIdx + 1]);
+      } else if(dx > 0 && raceIdx > 0){
+        setRaceTab(RACE_TABS[raceIdx - 1]);
+      }
+      return; // consumed — don't fall through to main-tab swipe
     }
 
-    if(dx > 0 && currentIndex > 0){
-      setMain(TAB_ORDER[currentIndex - 1]);
+    // All other main tabs: swipe between them
+    const mainIdx = MAIN_TABS.indexOf(S.mainTab);
+    if(mainIdx === -1) return;
+    if(dx < 0 && mainIdx < MAIN_TABS.length - 1){
+      setMain(MAIN_TABS[mainIdx + 1]);
+    } else if(dx > 0 && mainIdx > 0){
+      setMain(MAIN_TABS[mainIdx - 1]);
     }
   }, {passive:true});
 })();
