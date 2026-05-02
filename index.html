@@ -1107,6 +1107,47 @@ function renderHourlyRows(date,h){
   return rows.length?rows.join(''):'<div style="padding:10px 14px;font-size:12px;color:var(--txt3);">No upcoming hours</div>';
 }
 
+// Returns wind data for a weather card date:
+// - If a race is scheduled: uses hourly snapshot at race start time (same as calendar tab)
+// - If no race: averages hourly wind 09:00–17:00 (daytime sailing window)
+function getWeatherCardData(date, h){
+  // Check if a race is scheduled on this date with a known start time
+  const race = PROG.find(r => r.d === date && r.starts && r.starts.trim() !== '');
+  if(race){
+    const wx = getCalWeather(date, race.starts);
+    if(wx && !wx.tooFar){
+      return {
+        kn: wx.kn,
+        gust: wx.gust,
+        dir: wx.dir,
+        source: 'Race start',
+        startLabel: race.starts.split('·')[0].trim() // first start time only
+      };
+    }
+  }
+  // No race or forecast not available — average 09:00–17:00 daytime hours
+  const knValues=[], gustValues=[], dirValues=[];
+  if(h){
+    h.time.forEach((t,i)=>{
+      if(!t.startsWith(date+'T'))return;
+      const hr=parseInt(t.slice(11,13));
+      if(hr>=9&&hr<17){
+        if(h.windspeed_10m[i]!=null)  knValues.push(h.windspeed_10m[i]);
+        if(h.windgusts_10m&&h.windgusts_10m[i]!=null) gustValues.push(h.windgusts_10m[i]);
+        if(h.winddirection_10m[i]!=null) dirValues.push(h.winddirection_10m[i]);
+      }
+    });
+  }
+  if(!knValues.length) return null; // fall back to daily max if no hourly data
+  const avgKn = Math.round(knValues.reduce((a,b)=>a+b,0)/knValues.length);
+  const maxGust = gustValues.length ? Math.round(Math.max(...gustValues)) : null;
+  // Average direction via vector mean
+  let sinSum=0, cosSum=0;
+  dirValues.forEach(deg=>{sinSum+=Math.sin(deg*Math.PI/180);cosSum+=Math.cos(deg*Math.PI/180);});
+  const avgDir = dirValues.length ? compass(Math.round(Math.atan2(sinSum,cosSum)*180/Math.PI+360)%360) : '—';
+  return {kn: avgKn, gust: maxGust, dir: avgDir, source: 'Daytime avg', startLabel: null};
+}
+
 function renderWeatherSection(){
   if(S.wxLoading)return'<div style="text-align:center;padding:3rem 1rem;color:var(--txt2);"><div style="font-size:32px;margin-bottom:12px;">\uD83C\uDF0A</div><div style="font-size:14px;">Fetching forecast\u2026</div></div>';
   if(S.wxError)return'<div style="padding:14px;background:var(--red-bg);border:.5px solid var(--red-bd);border-radius:var(--radius);color:var(--red-txt);font-size:13px;margin-bottom:1rem;">'+S.wxError+'</div><div style="text-align:center;"><button onclick="fetchWeather()" style="padding:10px 24px;">&#8635; Retry</button></div>';
@@ -1123,9 +1164,14 @@ function renderWeatherSection(){
   const staleBanner=S.wxStale?'<div style="padding:8px 14px;background:var(--amber-bg);border:.5px solid var(--amber-bd);border-radius:var(--radius);color:var(--amber-txt);font-size:12px;font-weight:600;margin-bottom:12px;">&#9888; Offline — showing cached forecast from '+fetchedLabel+'</div>':'';
 
   const cards=days.map((date,i)=>{
-    const kn=Math.round(d.windspeed_10m_max[i]);
+    // Use race-start or daytime-average wind instead of daily maximum
+    const cardWx=getWeatherCardData(date,h);
+    const kn=cardWx?cardWx.kn:Math.round(d.windspeed_10m_max[i]);
+    const gustKnDay=cardWx?cardWx.gust:(d.windgusts_10m_max&&d.windgusts_10m_max[i]!=null?Math.round(d.windgusts_10m_max[i]):null);
+    const dir=cardWx?cardWx.dir:compass(d.winddirection_10m_dominant[i]);
+    const wxSource=cardWx?cardWx.source:'Max wind';
+    const wxStartLabel=cardWx&&cardWx.startLabel?cardWx.startLabel:null;
     const bf=beaufort(kn);
-    const dir=compass(d.winddirection_10m_dominant[i]);
     const rain=d.precipitation_sum[i];
     const code=d.weathercode[i];
     const tMax=Math.round(d.temperature_2m_max[i]);
@@ -1136,7 +1182,6 @@ function renderWeatherSection(){
     const isToday=i===0;
     const isOpen=!!S.wxExpanded[i];
     const bfn=bf.n;
-    const gustKnDay=d.windgusts_10m_max&&d.windgusts_10m_max[i]!=null?Math.round(d.windgusts_10m_max[i]):null;
     const cond=eycCondition(kn,gustKnDay);
     const sBg=cond.bg;
     const sTxt=cond.txt;
@@ -1157,7 +1202,8 @@ function renderWeatherSection(){
             +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
               +'<span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:'+sBg+';color:'+sTxt+';border:.5px solid '+sBd+';">'+sLabel+'</span>'
               +gustPill
-              +'<span style="font-size:12px;color:var(--txt2);">B'+bfn+' \u00b7 '+kn+'kn'+(d.windgusts_10m_max&&d.windgusts_10m_max[i]?' G'+Math.round(d.windgusts_10m_max[i])+'kn':'')+' '+dir+'</span>'
+              +'<span style="font-size:12px;color:var(--txt2);">B'+bfn+' \u00b7 '+kn+'kn'+(gustKnDay?' G'+gustKnDay+'kn':'')+' '+dir+'</span>'
+              +'<span style="font-size:11px;color:var(--txt3);font-style:italic;">'+(wxStartLabel?wxStartLabel+' start':wxSource)+'</span>'
               +'<span style="font-size:12px;color:var(--txt2);">\uD83C\uDF05'+sunrise+' \uD83C\uDF07'+sunset+'</span>'
             +'</div>'
           +'</div>'
