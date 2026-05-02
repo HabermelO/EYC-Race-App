@@ -967,28 +967,25 @@ function beaufort(kn){
   if(kn<41)return{n:8,d:'Gale'};
   return{n:9,d:'Severe gale'};
 }
-// EYC sailing condition assessment — uses mean wind + gusts, EYC-calibrated thresholds
+// EYC sailing condition assessment — mean wind only; gusts handled separately
 function eycCondition(meanKn, gustKn){
-  // Score on the higher of mean wind or 75% of gust — gusts are the limiting factor
-  const effective = gustKn ? Math.max(meanKn, gustKn * 0.75) : meanKn;
+  // Mean wind label — EYC thresholds in knots
   let label, bg, txt, bd;
-  if(effective < 3){
-    label='Too light';    bg='var(--bg2)';        txt='var(--txt3)';       bd='var(--border)';
-  } else if(effective < 6){
-    label='Very light';   bg='var(--green-bg)';   txt='var(--green-txt)';  bd='var(--green-bd)';
-  } else if(effective <= 10){
-    label='Good sailing'; bg='var(--green-bg)';   txt='var(--green-txt)';  bd='var(--green-bd)';
-  } else if(effective <= 14){
-    label='Brisk';        bg='var(--amber-bg)';   txt='var(--amber-txt)';  bd='var(--amber-bd)';
-  } else if(effective <= 18){
-    label='Strong';       bg='var(--amber-bg)';   txt='var(--amber-txt)';  bd='var(--amber-bd)';
-  } else if(effective <= 24){
-    label='Very strong';  bg='var(--red-bg)';     txt='var(--red-txt)';    bd='var(--red-bd)';
+  if(meanKn < 3){
+    label='Very light';  bg='var(--bg2)';        txt='var(--txt3)';       bd='var(--border)';
+  } else if(meanKn < 6){
+    label='Light';       bg='var(--green-bg)';   txt='var(--green-txt)';  bd='var(--green-bd)';
+  } else if(meanKn < 10){
+    label='Good';        bg='var(--green-bg)';   txt='var(--green-txt)';  bd='var(--green-bd)';
+  } else if(meanKn < 13){
+    label='Moderate';    bg='var(--amber-bg)';   txt='var(--amber-txt)';  bd='var(--amber-bd)';
+  } else if(meanKn < 17){
+    label='Strong';      bg='var(--amber-bg)';   txt='var(--amber-txt)';  bd='var(--amber-bd)';
   } else {
-    label='Dangerous';    bg='var(--red-bg)';     txt='var(--red-txt)';    bd='var(--red-bd)';
+    label='Very strong'; bg='var(--red-bg)';     txt='var(--red-txt)';    bd='var(--red-bd)';
   }
-  // Gust warning shown when gusts are 8kn+ above mean (genuinely gusty, not just windy)
-  const warn = (gustKn && gustKn >= meanKn + 8) ? 'Gusty +'+Math.round(gustKn - meanKn)+'kn' : null;
+  // Gust warning — independent of mean wind; fires whenever gusts exceed 17kn
+  const warn = (gustKn && gustKn >= 17) ? '⚠️ Gusts '+gustKn+'kn' : null;
   return {label, bg, txt, bd, warn};
 }
 function compass(deg){
@@ -1144,7 +1141,8 @@ function renderWeatherSection(){
     const sBg=cond.bg;
     const sTxt=cond.txt;
     const sBd=cond.bd;
-    const sLabel=cond.label+(cond.warn?' ⚠️ '+cond.warn:'');
+    const sLabel=cond.label;
+    const gustPill=cond.warn?'<span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--red-bg);color:var(--red-txt);border:.5px solid var(--red-bd);">'+cond.warn+'</span>':'';
     const hourlyHTML=renderHourlyRows(date,h);
     return(
       '<div style="background:var(--bg);border:.5px solid '+(isToday?'var(--blue-bd)':'var(--border)')+';border-radius:var(--radius-lg);overflow:hidden;margin-bottom:10px;'+(isToday?'border-width:1.5px;':'')+'">'
@@ -1158,6 +1156,7 @@ function renderWeatherSection(){
             +'</div>'
             +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
               +'<span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:'+sBg+';color:'+sTxt+';border:.5px solid '+sBd+';">'+sLabel+'</span>'
+              +gustPill
               +'<span style="font-size:12px;color:var(--txt2);">B'+bfn+' \u00b7 '+kn+'kn'+(d.windgusts_10m_max&&d.windgusts_10m_max[i]?' G'+Math.round(d.windgusts_10m_max[i])+'kn':'')+' '+dir+'</span>'
               +'<span style="font-size:12px;color:var(--txt2);">\uD83C\uDF05'+sunrise+' \uD83C\uDF07'+sunset+'</span>'
             +'</div>'
@@ -1479,7 +1478,8 @@ function render(){
         const sBg=calCond.bg;
         const sTxt=calCond.txt;
         const sBd=calCond.bd;
-        const sLabel=calCond.label+(calCond.warn?' ⚠️ '+calCond.warn:'');
+        const sLabel=calCond.label;
+        const gustWarn=calCond.warn?`<span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--red-bg);color:var(--red-txt);border:.5px solid var(--red-bd);margin-left:6px;">${calCond.warn}</span>`:'';
         wxPanel=`<div style="padding:10px 14px;border-top:.5px solid var(--border);background:var(--bg);">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--txt3);margin-bottom:8px;">Weather at race start</div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
@@ -1499,7 +1499,10 @@ function render(){
               <div style="font-size:10px;color:var(--txt2);">${wx.rainPct!==null?wx.rainPct+'% rain':wx.temp!==null?wx.temp+'°C':''}</div>
             </div>
           </div>
-          <div style="margin-top:8px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px;background:${sBg};color:${sTxt};display:inline-block;">${sLabel}</div>
+          <div style="margin-top:8px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+            <span style="font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px;background:${sBg};color:${sTxt};display:inline-block;">${sLabel}</span>
+            ${gustWarn}
+          </div>
           <div style="font-size:10px;color:var(--txt3);margin-top:6px;">&#9432; Forecast for race start time · Open-Meteo</div>
         </div>`;
       } else if(r.d>=todayStr){
