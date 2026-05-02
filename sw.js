@@ -10,7 +10,7 @@
 // The browser will detect the changed sw.js, install the new worker,
 // and wipe the old cache — users get the update on next open.
 
-const CACHE_VERSION = 'eyc-racing-v21';
+const CACHE_VERSION = 'eyc-racing-v22';
 
 const FILES_TO_CACHE = [
   './',
