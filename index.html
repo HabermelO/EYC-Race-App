@@ -306,7 +306,7 @@ let savePillTimer=null;
 function saveState(){
   try{
     localStorage.setItem(LS_KEY,JSON.stringify({
-      mainTab:S.mainTab,raceTab:S.raceTab,calFilter:S.calFilter,courseTab:S.courseTab,resultsTab:S.resultsTab,
+      mainTab:S.mainTab,raceTab:S.raceTab,calFilter:S.calFilter,courseTab:S.courseTab,resultsTab:S.resultsTab,bfleetTab:S.bfleetTab,
       comps:S.comps,status:S.status,startTime:S.startTime,elapsed:S.elapsed,
       sailInput:S.sailInput,classIdx:S.classIdx,pyInput:S.pyInput,customName:S.customName,
       nextId:S.nextId,showLateAdd:S.showLateAdd,shortenedCourse:S.shortenedCourse,
@@ -324,7 +324,7 @@ function loadState(){
     const raw=localStorage.getItem(LS_KEY);if(!raw)return;
     const sn=JSON.parse(raw);
     S.mainTab=sn.mainTab||'race';S.raceTab=sn.raceTab||'competitors';
-    S.calFilter=sn.calFilter||'all';S.courseTab=sn.courseTab||'courses';S.resultsTab=sn.resultsTab||'bfleet';
+    S.calFilter=sn.calFilter||'all';S.courseTab=sn.courseTab||'courses';S.resultsTab=sn.resultsTab||'bfleet';S.bfleetTab=sn.bfleetTab||'spring';
     S.comps=sn.comps||[];S.status=sn.status||'idle';
     S.startTime=sn.startTime||null;S.elapsed=sn.elapsed||0;
     S.sailInput=sn.sailInput||'';S.classIdx=sn.classIdx||0;
@@ -359,7 +359,7 @@ function loadState(){
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 let S={
-  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',resultsTab:'bfleet',wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
+  mainTab:'race',raceTab:'competitors',calFilter:'all',courseTab:'courses',resultsTab:'bfleet',bfleetTab:'spring',wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
   showLateAdd:false,shortenedCourse:false,bulkFinish:false,rollingStarts:false,
@@ -684,6 +684,7 @@ function fmtRYATime(ms){
 // ─────────────────────────────────────────────────────────────────────────────
 window.setMain=t=>{S.mainTab=t;saveState();if(t==='weather')fetchWeather();else{if(t==='calendar'&&navigator.onLine&&(!S.wxData||Date.now()-S.wxFetched>1800000))fetchWeather();render();}};
 window.setResultsTab=t=>{S.resultsTab=t;saveState();render();};
+window.setBfleetTab=t=>{S.bfleetTab=t;saveState();render()};
 window.setRaceTab=t=>{S.raceTab=t;saveState();render();};
 window.setFilter=f=>{S.calFilter=f;saveState();render();};
 window.toggleCal=d=>{
@@ -761,7 +762,8 @@ window.bulkFinishNext=()=>{
   const next=sorted.find(c=>c.finishTime===null&&c.status!=='ocs'&&c.status!=='ret'&&c.status!=='dns');
   if(!next){if(navigator.vibrate)navigator.vibrate([30,30,30]);return;}
   pushHistory('finish',next.id);
-  next.finishTime=S.elapsed;next.laps++;next.lapTimes.push(S.elapsed);
+  const t=Date.now()-S.startTime;
+  next.finishTime=t;next.laps++;next.lapTimes.push(t);
   if(navigator.vibrate)navigator.vibrate([50,30,100]);
   saveState();renderRaceList();updateUndoButtons();updateBulkButton();
 };
@@ -812,7 +814,8 @@ window.recLap=id=>{
   const c=S.comps.find(x=>x.id===id);
   if(!c||c.status==='ocs'||c.status==='ret')return;
   pushHistory('lap',id);
-  c.laps++;c.lapTimes.push(S.elapsed);
+  const t=Date.now()-S.startTime;
+  c.laps++;c.lapTimes.push(t);
   if(navigator.vibrate)navigator.vibrate(50);
   saveState();renderRaceList();updateUndoButtons();
 };
@@ -821,7 +824,8 @@ window.recFinish=id=>{
   const c=S.comps.find(x=>x.id===id);
   if(!c||c.finishTime!==null||c.status==='ocs'||c.status==='ret')return;
   pushHistory('finish',id);
-  c.finishTime=S.elapsed;c.laps++;c.lapTimes.push(S.elapsed);
+  const t=Date.now()-S.startTime;
+  c.finishTime=t;c.laps++;c.lapTimes.push(t);
   if(navigator.vibrate)navigator.vibrate([50,30,100]);
   saveState();renderRaceList();updateUndoButtons();
 };
@@ -1339,7 +1343,7 @@ function render(){
         ${idle?`
           <button class="btn-amber" onclick="startSequence()" style="padding:11px 20px;font-size:14px;font-weight:600;">&#9654; 5-Min Sequence</button>
           <button class="btn-green" onclick="instantStart()" style="padding:11px 20px;font-size:14px;">&#9654; Quick start</button>
-        `:''}'
+        `:''}
         ${running?`<button onclick="syncTimer()" style="padding:11px 16px;font-size:13px;font-weight:700;background:var(--blue-bg);color:var(--blue-txt);border:.5px solid var(--blue-bd);border-radius:var(--radius);" title="Snap to nearest minute">&#9654;&#9616; Sync</button><button class="btn-red" onclick="endRace()" style="padding:11px 28px;font-size:15px;font-weight:600;">End race</button><button class="btn-ghost" onclick="resetRace()" style="padding:11px 16px;">Reset</button>`:''}
         ${finished?`<button class="btn-green" onclick="setRaceTab('results')" style="padding:11px 28px;font-size:15px;font-weight:600;">View results &rarr;</button><button class="btn-ghost" onclick="resetRace()" style="padding:11px 16px;">Reset</button>`:''}
       </div>
@@ -1681,21 +1685,38 @@ function render(){
     <div style="font-size:12px;color:var(--txt2);">Live from essexyachtclub.co.uk</div>
   </div>
   <div class="sub-tabs" style="margin-bottom:1rem;">
-    <button class="sub-tab ${S.resultsTab==='bfleet'?'active':''}" onclick="setResultsTab('bfleet')">B Fleet Spring</button>
+    <button class="sub-tab ${S.resultsTab==='bfleet'?'active':''}" onclick="setResultsTab('bfleet')">B Fleet</button>
     <button class="sub-tab ${S.resultsTab==='eod'?'active':''}" onclick="setResultsTab('eod')">EOD</button>
     <button class="sub-tab ${S.resultsTab==='cruiser'?'active':''}" onclick="setResultsTab('cruiser')">Cruiser</button>
     <button class="sub-tab ${S.resultsTab==='trophy'?'active':''}" onclick="setResultsTab('trophy')">Trophy Races</button>
   </div>
   ${S.resultsTab==='bfleet'?`
-    <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
-      <iframe src="https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm"
-        style="width:100%;height:calc(100vh - 260px);min-height:500px;border:none;display:block;"
-        loading="lazy" title="B Fleet Spring Series 2026 Results"></iframe>
+    <div class="sub-tabs" style="margin-bottom:1rem;">
+      <button class="sub-tab ${S.bfleetTab==='spring'?'active':''}" onclick="setBfleetTab('spring')">Spring Series</button>
+      <button class="sub-tab ${S.bfleetTab==='bankholiday'?'active':''}" onclick="setBfleetTab('bankholiday')">Bank Holiday</button>
     </div>
-    <div style="margin-top:8px;text-align:center;">
-      <a href="https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm" target="_blank" rel="noopener"
-         style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
-    </div>
+    ${S.bfleetTab==='spring'?`
+      <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
+        <iframe src="https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm"
+          style="width:100%;height:calc(100vh - 300px);min-height:480px;border:none;display:block;"
+          loading="lazy" title="B Fleet Spring Series 2026 Results"></iframe>
+      </div>
+      <div style="margin-top:8px;text-align:center;">
+        <a href="https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm" target="_blank" rel="noopener"
+           style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
+      </div>
+    `:''}
+    ${S.bfleetTab==='bankholiday'?`
+      <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
+        <iframe src="https://www.essexyachtclub.co.uk/results/B%20Fleet%20May%20Bank%20Holiday%202026.htm"
+          style="width:100%;height:calc(100vh - 300px);min-height:480px;border:none;display:block;"
+          loading="lazy" title="B Fleet May Bank Holiday 2026 Results"></iframe>
+      </div>
+      <div style="margin-top:8px;text-align:center;">
+        <a href="https://www.essexyachtclub.co.uk/results/B%20Fleet%20May%20Bank%20Holiday%202026.htm" target="_blank" rel="noopener"
+           style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
+      </div>
+    `:''}
   `:''}
   ${['eod','cruiser','trophy'].includes(S.resultsTab)?`
     <div style="border-radius:var(--radius-lg);border:.5px solid var(--border);background:var(--bg);padding:2.5rem 1.5rem;text-align:center;">
