@@ -1907,6 +1907,17 @@ function render(){
       if(tm<=nowMins)prevTide=allTides[i];
       else if(!nextTide)nextTide=allTides[i];
     }
+    // If no prevTide (before first tide of day), use yesterday's last tide as prev
+    if(!prevTide){
+      const yest=new Date();yest.setDate(yest.getDate()-1);
+      const yestStr=yest.toLocaleDateString('en-CA');
+      const yestData=TIDES[yestStr]||null;
+      if(yestData){
+        const yt=[];for(let i=1;i<=4;i++){if(yestData['t'+i]!=null)yt.push({t:yestData['t'+i],h:yestData['h'+i]});}
+        yt.sort((a,b)=>a.t.localeCompare(b.t));
+        if(yt.length)prevTide=yt[yt.length-1];
+      }
+    }
     const isRising=prevTide&&nextTide?(nextTide.h>prevTide.h):null;
     const minsToNext=nextTide?(toMins(nextTide.t)-nowMins):null;
     const minsSincePrev=prevTide?(nowMins-toMins(prevTide.t)):null;
@@ -2005,8 +2016,21 @@ function render(){
           </div>`).join('')}
         </div>
       </div>`:''}
-      `:`<div style="opacity:.6;font-size:15px;padding:8px 0;">${S.wxLoading?'Fetching conditions…':'No weather data'}</div>`}
-      <div onclick="setMain('weather')" style="margin-top:14px;font-size:12px;opacity:.5;text-align:right;cursor:pointer;">Full forecast ›</div>
+      `:`
+      <div style="opacity:.6;font-size:15px;padding:8px 0;">${S.wxLoading?'Fetching conditions…':'No weather data'}</div>
+      `}
+      ${S.wxStale?`
+      <div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.1);border-radius:8px;font-size:11px;opacity:.75;display:flex;align-items:center;gap:6px;">
+        <span>⚠️</span>
+        <span>Offline — cached forecast from ${(()=>{
+          const d=new Date(S.wxFetched);
+          const age=Date.now()-S.wxFetched;
+          return age>86400000
+            ?d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})
+            :d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+        })()}</span>
+      </div>`:''}
+      <div onclick="setMain('weather')" style="margin-top:${S.wxStale?'8':'14'}px;font-size:12px;opacity:.5;text-align:right;cursor:pointer;">Full forecast ›</div>
     </div>
 
     <!-- ══ TIDE PROGRESS CARD ═════════════════════════════════════════════════ -->
@@ -2072,10 +2096,10 @@ function render(){
         </div>`:''}
       </div>
 
-      <!-- race start time + race weather -->
+      <!-- first warning signal + race weather -->
       ${race.starts?`
       <div style="background:var(--bg2);border-radius:10px;padding:14px 16px;">
-        <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;color:var(--txt3);">${svgClock}<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Race Start Time</span></div>
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;color:var(--txt3);">${svgClock}<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">First Warning Signal</span></div>
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
           <div style="font-size:28px;font-weight:900;letter-spacing:-.5px;line-height:1.3;color:#c0122b;">
             ${race.starts.split('·').map(s=>'<span style="display:block;">'+s.trim()+'</span>').join('')}
@@ -2639,6 +2663,18 @@ if(_origRender){
     renderRaceBar();
   };
 }
+
+// Refresh home tab every 60s so tidal state + "conditions now" stay current
+// Also retries weather fetch silently if data is stale and we're back online
+setInterval(()=>{
+  if(S.mainTab==='home'){
+    if(navigator.onLine&&(S.wxStale||!S.wxData||Date.now()-S.wxFetched>1800000)){
+      fetchWeather(); // fetchWeather calls render() itself when done
+    } else {
+      render();
+    }
+  }
+}, 60000);
 
 </script>
 </body>
