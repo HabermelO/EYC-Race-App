@@ -51,6 +51,7 @@
   button{font-family:inherit;font-size:13px;padding:8px 16px;border:.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--txt);cursor:pointer;white-space:nowrap;}
   button:hover{background:var(--bg2);}button:active{opacity:.8;}button:disabled{opacity:.4;cursor:not-allowed;}
   .card{background:var(--bg);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.65;}}
   .main-tabs{display:flex;background:var(--bg);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:4px;gap:4px;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,.05);}
   .main-tab{flex:1;border:none;border-radius:8px;background:none;padding:10px 4px;font-size:12px;font-weight:500;color:var(--txt2);cursor:pointer;transition:background .15s,color .15s;}
   .main-tab.active{background:var(--blue-bg);color:var(--blue-txt);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08);}
@@ -1868,7 +1869,25 @@ function render(){
   <div style="display:flex;flex-direction:column;gap:16px;padding-bottom:12px;">
   ${(()=>{
     const todayStr=new Date().toLocaleDateString('en-CA');
-    const race=PROG.find(r=>r.d>=todayStr&&r.starts&&r.starts.length>0)||PROG.find(r=>r.d>=todayStr);
+    const nowMinsGlobal=(()=>{const n=new Date();return n.getHours()*60+n.getMinutes();})();
+
+    // Find the next race, respecting the "racing in progress" window
+    // A race is "in progress" from 10 mins before start until 2 hours after start
+    const parseStartMins=startsStr=>{
+      if(!startsStr)return null;
+      const m=startsStr.match(/(\d{1,2}):(\d{2})/);
+      return m?parseInt(m[1])*60+parseInt(m[2]):null;
+    };
+    const todayRace=PROG.find(r=>r.d===todayStr&&r.starts&&r.starts.length>0);
+    const todayStartM=todayRace?parseStartMins(todayRace.starts):null;
+    const racingInProgress=todayRace&&todayStartM!=null&&
+      nowMinsGlobal>=(todayStartM-10)&&nowMinsGlobal<=(todayStartM+120);
+
+    // If racing is in progress, show next future race (tomorrow onwards)
+    // Otherwise show the normal next upcoming race
+    const race=racingInProgress
+      ? (PROG.find(r=>r.d>todayStr&&r.starts&&r.starts.length>0)||PROG.find(r=>r.d>todayStr))
+      : (PROG.find(r=>r.d>=todayStr&&r.starts&&r.starts.length>0)||PROG.find(r=>r.d>=todayStr));
     const tideDay=TIDES[todayStr]||null;
 
     // countdown
@@ -1969,7 +1988,7 @@ function render(){
     const windDeg=displayWx?(displayWx.deg!=null?displayWx.deg:(()=>{
       const dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
       const i=dirs.indexOf(displayWx.dir);return i>=0?i*22.5:0;
-    })()):0;
+    })())+180:0; // +180 so arrow points where wind is going, not where it's from
 
     // SVG icons (inline strings)
     const svgWindIcon='<svg width="44" height="44" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="24" fill="var(--teal-bg)"/><g transform="translate(24,24) rotate('+windDeg+') translate(-24,-24)"><path d="M24 10 L28 28 L24 25 L20 28 Z" fill="var(--teal-txt)"/></g><circle cx="24" cy="24" r="3" fill="var(--teal-txt)" opacity=".35"/></svg>';
@@ -1980,7 +1999,7 @@ function render(){
     return `
 
     <!-- ══ HERO: CONDITIONS NOW ══════════════════════════════════════════════ -->
-    <div style="background:linear-gradient(140deg,#0e3a5c 0%,#185fa5 100%);border-radius:16px;padding:22px 20px 18px;color:#fff;position:relative;overflow:hidden;">
+    <div onclick="setMain('weather')" style="background:linear-gradient(140deg,#0e3a5c 0%,#185fa5 100%);border-radius:16px;padding:22px 20px 18px;color:#fff;position:relative;overflow:hidden;cursor:pointer;">
       <div style="position:absolute;top:-30px;right:-20px;width:130px;height:130px;background:rgba(255,255,255,.05);border-radius:50%;pointer-events:none;"></div>
       <div style="position:absolute;bottom:-40px;left:-10px;width:100px;height:100px;background:rgba(255,255,255,.04);border-radius:50%;pointer-events:none;"></div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.65;margin-bottom:14px;">Conditions Now · Chalkwell</div>
@@ -2030,7 +2049,7 @@ function render(){
             :d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
         })()}</span>
       </div>`:''}
-      <div onclick="setMain('weather')" style="margin-top:${S.wxStale?'8':'14'}px;font-size:12px;opacity:.5;text-align:right;cursor:pointer;">Full forecast ›</div>
+      <div style="margin-top:${S.wxStale?'8':'14'}px;font-size:12px;opacity:.5;text-align:right;">Full forecast ›</div>
     </div>
 
     <!-- ══ TIDE PROGRESS CARD ═════════════════════════════════════════════════ -->
@@ -2071,12 +2090,14 @@ function render(){
 
       <!-- header row -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);">Next Race</div>
-        ${isToday
-          ?`<span style="background:#c0122b;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em;">● LIVE TODAY</span>`
-          :`<span style="background:var(--bg2);color:${isTomorrow?'var(--amber-txt)':'var(--txt2)'};font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;">
-              ${isTomorrow?'Tomorrow':'In '+diffDays+' days'}
-            </span>`
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);">${racingInProgress?'On The Water':'Next Race'}</div>
+        ${racingInProgress
+          ?`<span style="background:#c0122b;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em;animation:pulse 2s infinite;">⛵ Racing In Progress</span>`
+          :isToday
+            ?`<span style="background:#c0122b;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em;">● LIVE TODAY</span>`
+            :`<span style="background:var(--bg2);color:${isTomorrow?'var(--amber-txt)':'var(--txt2)'};font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;">
+                ${isTomorrow?'Tomorrow':'In '+diffDays+' days'}
+              </span>`
         }
       </div>
 
