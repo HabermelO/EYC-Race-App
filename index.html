@@ -1883,11 +1883,17 @@ function render(){
     const racingInProgress=todayRace&&todayStartM!=null&&
       nowMinsGlobal>=(todayStartM-10)&&nowMinsGlobal<=(todayStartM+120);
 
-    // If racing is in progress, show next future race (tomorrow onwards)
+    // raceFinished: today had a race but we're past the 2hr window
+    const raceFinished=todayRace&&todayStartM!=null&&nowMinsGlobal>(todayStartM+120)&&!racingInProgress;
+
+    // If racing is in progress, show TODAY's race details
+    // If today's race is finished, skip to the next future race
     // Otherwise show the normal next upcoming race
     const race=racingInProgress
-      ? (PROG.find(r=>r.d>todayStr&&r.starts&&r.starts.length>0)||PROG.find(r=>r.d>todayStr))
-      : (PROG.find(r=>r.d>=todayStr&&r.starts&&r.starts.length>0)||PROG.find(r=>r.d>=todayStr));
+      ? todayRace
+      : raceFinished
+        ? (PROG.find(r=>r.d>todayStr&&r.starts&&r.starts.length>0)||PROG.find(r=>r.d>todayStr))
+        : (PROG.find(r=>r.d>=todayStr&&r.starts&&r.starts.length>0)||PROG.find(r=>r.d>=todayStr));
     const tideDay=TIDES[todayStr]||null;
 
     // countdown
