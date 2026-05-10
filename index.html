@@ -728,7 +728,7 @@ function loadState(){
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 let S={
-  mainTab:'home',raceTab:'competitors',calFilter:'all',courseTab:'courses',resultsTab:'bfleet',bfleetTab:'spring',eodTab:'forwardhands',wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
+  mainTab:'home',raceTab:'competitors',calFilter:'all',courseTab:'courses',resultsTab:'bfleet',bfleetTab:'spring',eodTab:'forwardhands',resultsData:null,resultsLoaded:false,activeResult:{},wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
   showLateAdd:false,shortenedCourse:false,bulkFinish:false,rollingStarts:false,
@@ -1051,10 +1051,11 @@ function fmtRYATime(ms){
 // ─────────────────────────────────────────────────────────────────────────────
 // ACTIONS
 // ─────────────────────────────────────────────────────────────────────────────
-window.setMain=t=>{S.mainTab=t;saveState();if(t==='weather'||t==='home')fetchWeather();else{if(t==='calendar'&&navigator.onLine&&(!S.wxData||Date.now()-S.wxFetched>1800000))fetchWeather();render();}};
-window.setResultsTab=t=>{S.resultsTab=t;saveState();render();};
+window.setMain=t=>{S.mainTab=t;saveState();if(t==='weather'||t==='home')fetchWeather();else if(t==='results'){if(!S.resultsLoaded)fetchResults();else render();}else{if(t==='calendar'&&navigator.onLine&&(!S.wxData||Date.now()-S.wxFetched>1800000))fetchWeather();render();}};
+window.setResultsTab=t=>{S.resultsTab=t;saveState();if(!S.resultsLoaded)fetchResults();else render();};
 window.setBfleetTab=t=>{S.bfleetTab=t;saveState();render()};
 window.setEodTab=t=>{S.eodTab=t;saveState();render();};
+window.setActiveResult=(cat,url)=>{if(!S.activeResult)S.activeResult={};S.activeResult[cat]=url;render();};
 window.setRaceTab=t=>{S.raceTab=t;saveState();render();};
 window.setFilter=f=>{S.calFilter=f;saveState();render();};
 window.toggleCal=d=>{
@@ -1407,9 +1408,32 @@ function fmtDayLabel(iso){
   return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 }
 
+async function fetchResults(){
+  if(S.resultsLoaded)return; // already loaded this session
+  try{
+    const resp=await fetch('results.json?_='+Date.now());
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const data=await resp.json();
+    S.resultsData=data;
+    S.resultsLoaded=true;
+    // Set sensible default sub-tabs from loaded data
+    if(data.categories){
+      data.categories.forEach(cat=>{
+        if(cat.id==='bfleet'&&cat.results.length>0&&!S.bfleetTab)S.bfleetTab=cat.results[0].filename;
+        if(cat.id==='eod'&&cat.results.length>0&&!S.eodTab)S.eodTab=cat.results[0].filename;
+      });
+    }
+    render();
+  }catch(e){
+    console.warn('[EYC] Could not load results.json:',e.message);
+    render();
+  }
+}
+
 async function fetchWeather(){
   // Only re-fetch if older than 30 minutes
   if(S.wxData&&Date.now()-S.wxFetched<1800000){render();return;}
+  S.wxLoading=true;S.wxError=null;render();
   S.wxLoading=true;S.wxError=null;render();
   try{
     const res=await fetch(WX_URL);
@@ -2356,82 +2380,41 @@ function render(){
 
   `:''}
   ${S.mainTab==='results'?`
-  <div style="margin-bottom:1rem;">
-    <div style="font-size:15px;font-weight:700;margin-bottom:2px;">Series Results</div>
-    <div style="font-size:12px;color:var(--txt2);">Live from essexyachtclub.co.uk</div>
+  <div style="margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+    <div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:2px;">Series Results</div>
+      <div style="font-size:12px;color:var(--txt2);">Live from essexyachtclub.co.uk</div>
+    </div>
+    ${S.resultsData?`<div style="font-size:11px;color:var(--txt3);">Updated ${new Date(S.resultsData.updated).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`:''}
   </div>
-  <div class="sub-tabs" style="margin-bottom:1rem;">
-    <button class="sub-tab ${S.resultsTab==='bfleet'?'active':''}" onclick="setResultsTab('bfleet')">B Fleet</button>
-    <button class="sub-tab ${S.resultsTab==='eod'?'active':''}" onclick="setResultsTab('eod')">EOD</button>
-    <button class="sub-tab ${S.resultsTab==='cruiser'?'active':''}" onclick="setResultsTab('cruiser')">Cruiser</button>
-    <button class="sub-tab ${S.resultsTab==='trophy'?'active':''}" onclick="setResultsTab('trophy')">Trophy Races</button>
-  </div>
-  ${S.resultsTab==='bfleet'?`
-    <div class="sub-tabs" style="margin-bottom:1rem;">
-      <button class="sub-tab ${S.bfleetTab==='spring'?'active':''}" onclick="setBfleetTab('spring')">Spring Series</button>
-      <button class="sub-tab ${S.bfleetTab==='bankholiday'?'active':''}" onclick="setBfleetTab('bankholiday')">Bank Holiday</button>
-    </div>
-    ${S.bfleetTab==='spring'?`
-      <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
-        <iframe src="https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm"
-          style="width:100%;height:calc(100vh - 300px);min-height:480px;border:none;display:block;"
-          loading="lazy" title="B Fleet Spring Series 2026 Results"></iframe>
-      </div>
-      <div style="margin-top:8px;text-align:center;">
-        <a href="https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm" target="_blank" rel="noopener"
-           style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
-      </div>
-    `:''}
-    ${S.bfleetTab==='bankholiday'?`
-      <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
-        <iframe src="https://www.essexyachtclub.co.uk/results/B%20Fleet%20May%20Bank%20Holiday%202026.htm"
-          style="width:100%;height:calc(100vh - 300px);min-height:480px;border:none;display:block;"
-          loading="lazy" title="B Fleet May Bank Holiday 2026 Results"></iframe>
-      </div>
-      <div style="margin-top:8px;text-align:center;">
-        <a href="https://www.essexyachtclub.co.uk/results/B%20Fleet%20May%20Bank%20Holiday%202026.htm" target="_blank" rel="noopener"
-           style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
-      </div>
-    `:''}
-  `:''}
-  ${S.resultsTab==='eod'?`
-    <div class="sub-tabs" style="margin-bottom:1rem;">
-      <button class="sub-tab ${S.eodTab==='forwardhands'?'active':''}" onclick="setEodTab('forwardhands')">Forward Hands Trophy</button>
-      <button class="sub-tab ${S.eodTab==='tonymoore'?'active':''}" onclick="setEodTab('tonymoore')">Tony Moore Trophy</button>
-    </div>
-    ${S.eodTab==='forwardhands'?`
-      <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
-        <iframe src="https://www.essexyachtclub.co.uk/results/EOD%20Forward%20Hands%20Trophy%202026.htm"
-          style="width:100%;height:calc(100vh - 300px);min-height:480px;border:none;display:block;"
-          loading="lazy" title="EOD Forward Hands Trophy 2026 Results"></iframe>
-      </div>
-      <div style="margin-top:8px;text-align:center;">
-        <a href="https://www.essexyachtclub.co.uk/results/EOD%20Forward%20Hands%20Trophy%202026.htm" target="_blank" rel="noopener"
-           style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
-      </div>
-    `:''}
-    ${S.eodTab==='tonymoore'?`
-      <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
-        <iframe src="https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm"
-          style="width:100%;height:calc(100vh - 300px);min-height:480px;border:none;display:block;"
-          loading="lazy" title="Tony Moore Memorial Trophy 2026 Results"></iframe>
-      </div>
-      <div style="margin-top:8px;text-align:center;">
-        <a href="https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm" target="_blank" rel="noopener"
-           style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
-      </div>
-    `:''}
-  `:''}
-
-  ${['cruiser','trophy'].includes(S.resultsTab)?`
-    <div style="border-radius:var(--radius-lg);border:.5px solid var(--border);background:var(--bg);padding:2.5rem 1.5rem;text-align:center;">
-      <div style="font-size:36px;margin-bottom:12px;">${S.resultsTab==='trophy'?'🏆':'⛵'}</div>
-      <div style="font-weight:700;font-size:15px;margin-bottom:6px;">
-        ${S.resultsTab==='cruiser'?'Cruiser Results':'Trophy Race Results'}
-      </div>
-      <div style="font-size:13px;color:var(--txt2);line-height:1.6;">Results link not yet configured.<br>Add the URL to display results here.</div>
-    </div>
-  `:''}
+  ${(()=>{
+    if(!S.resultsLoaded)return '<div style="text-align:center;padding:2rem;color:var(--txt3);font-size:14px;">Loading results…</div>';
+    if(!S.resultsData||!S.resultsData.categories)return '<div style="text-align:center;padding:2rem;color:var(--txt3);font-size:14px;">Could not load results. Check your connection.</div>';
+    const cats=S.resultsData.categories.filter(c=>c.results&&c.results.length>0);
+    if(!cats.length)return '<div style="text-align:center;padding:2rem;color:var(--txt3);">No results published yet.</div>';
+    if(!cats.find(c=>c.id===S.resultsTab))S.resultsTab=cats[0].id;
+    const activeCat=cats.find(c=>c.id===S.resultsTab);
+    if(!S.activeResult)S.activeResult={};
+    if(!S.activeResult[S.resultsTab]&&activeCat.results.length>0)S.activeResult[S.resultsTab]=activeCat.results[0].url;
+    const activeUrl=S.activeResult[S.resultsTab];
+    const catTabs=cats.map(c=>`<button class="sub-tab ${S.resultsTab===c.id?'active':''}" onclick="setResultsTab('${c.id}')">${c.emoji} ${c.label}</button>`).join('');
+    const resTabs=activeCat.results.length>1
+      ? activeCat.results.map(r=>`<button class="sub-tab ${activeUrl===r.url?'active':''}" onclick="window.setActiveResult('${S.resultsTab}','${r.url}')">${r.name}</button>`).join('')
+      : '';
+    const iframeBlock=activeUrl
+      ? `<div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
+          <iframe src="${activeUrl}" style="width:100%;height:calc(100vh - 300px);min-height:480px;border:none;display:block;" loading="lazy"></iframe>
+        </div>
+        <div style="margin-top:8px;text-align:center;">
+          <a href="${activeUrl}" target="_blank" rel="noopener" style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
+        </div>`
+      : '<div style="padding:2rem;text-align:center;color:var(--txt3);">No results available for this category yet.</div>';
+    return `
+    <div class="sub-tabs" style="margin-bottom:1rem;">${catTabs}</div>
+    ${resTabs?`<div class="sub-tabs" style="margin-bottom:1rem;">${resTabs}</div>`:''}
+    ${iframeBlock}
+    `;
+  })()}
   <div style="margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;">
     <div>
       <div style="font-size:15px;font-weight:700;">3-Day Forecast</div>
@@ -2508,6 +2491,8 @@ function render(){
 }
 
 render();
+// Pre-fetch results.json in background so it's ready when user taps Results tab
+fetchResults();
 
 // === SWIPE BETWEEN TABS (MAIN + RACE SUB-TABS) ===
 (function(){
