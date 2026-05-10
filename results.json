@@ -1,42 +1,22 @@
 {
-  "updated": "2026-05-10T00:00:00+00:00",
+  "updated": "2026-05-10T20:11:10.355555+00:00",
   "year": "2026",
-  "total": 4,
   "categories": [
     {
       "id": "bfleet",
       "label": "B Fleet",
-      "emoji": "⛵",
-      "results": [
-        {
-          "name": "B Fleet Spring Series",
-          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm",
-          "filename": "B%20Fleet%20Spring%20Series%202026.htm",
-          "category": "bfleet"
-        },
-        {
-          "name": "B Fleet May Bank Holiday",
-          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20May%20Bank%20Holiday%202026.htm",
-          "filename": "B%20Fleet%20May%20Bank%20Holiday%202026.htm",
-          "category": "bfleet"
-        }
-      ]
+      "emoji": "\u26f5",
+      "results": []
     },
     {
       "id": "eod",
       "label": "EOD",
-      "emoji": "🚤",
+      "emoji": "\ud83d\udea4",
       "results": [
         {
           "name": "EOD Forward Hands Trophy",
           "url": "https://www.essexyachtclub.co.uk/results/EOD%20Forward%20Hands%20Trophy%202026.htm",
           "filename": "EOD%20Forward%20Hands%20Trophy%202026.htm",
-          "category": "eod"
-        },
-        {
-          "name": "Tony Moore Memorial Trophy",
-          "url": "https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm",
-          "filename": "Tony%20Moore%20Memorial%20Trophy%202026.htm",
           "category": "eod"
         }
       ]
@@ -44,14 +24,40 @@
     {
       "id": "cruiser",
       "label": "Cruiser",
-      "emoji": "⚓",
+      "emoji": "\u2693",
       "results": []
     },
     {
       "id": "trophy",
       "label": "Trophy Races",
-      "emoji": "🏆",
-      "results": []
+      "emoji": "\ud83c\udfc6",
+      "results": [
+        {
+          "name": "B Fleet May Bank Holiday",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20May%20Bank%20Holiday%202026.htm",
+          "filename": "B%20Fleet%20May%20Bank%20Holiday%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "B Fleet Spring Series",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm",
+          "filename": "B%20Fleet%20Spring%20Series%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "Easter Tin Mug",
+          "url": "https://www.essexyachtclub.co.uk/results/Easter%20Tin%20Mug%202026.htm",
+          "filename": "Easter%20Tin%20Mug%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "Tony Moore Memorial Trophy",
+          "url": "https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm",
+          "filename": "Tony%20Moore%20Memorial%20Trophy%202026.htm",
+          "category": "trophy"
+        }
+      ]
     }
-  ]
+  ],
+  "total": 5
 }
