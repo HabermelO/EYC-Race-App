@@ -208,6 +208,114 @@ const OFFSHORE_COURSES=[
 ];
 
 // EYC 2026 PROGRAMME — full list, start times fully explicit
+const SAILING_RULES=[
+  // ── DEFINITIONS ──────────────────────────────────────────────────────────
+  {n:"Def",t:"Fetching",s:"A boat is fetching a mark when she is in a position to pass to the required side of it without changing tack. Used to determine whether rule 18.3 (tacking in the zone) applies."},
+  {n:"Def",t:"Finish",s:"A boat finishes when any part of her hull, or crew or equipment in normal position, crosses the finishing line from the course side. She has finished even if she crosses the line after taking a penalty."},
+  {n:"Def",t:"Interested Party",s:"A person who may gain or lose as a result of a protest committee's decision, or who has a close personal interest in the outcome. An interested party shall not be on the protest committee."},
+  {n:"Def",t:"Keep Clear",s:"A boat keeps clear of a right-of-way boat when the right-of-way boat can sail her course with no need to take avoiding action and, when the boats are overlapped on the same tack, the leeward boat can change course without immediately making contact with the windward boat."},
+  {n:"Def",t:"Leeward & Windward",s:"A boat's leeward side is the side that is, or was most recently, away from the wind. The other side is her windward side. When neither of two overlapped boats on the same tack is clear astern, the one on the leeward side of the other is the leeward boat."},
+  {n:"Def",t:"Mark-Room",s:"Room for a boat to sail to the mark, and then room to sail her proper course while at the mark. Mark-room does not include room to tack unless the boat is overlapped to windward and on the inside."},
+  {n:"Def",t:"Obstruction",s:"An object that a boat could not pass without changing course substantially if she were sailing directly towards it on a collision course at her racing speed — including a vessel under way, or a boat racing."},
+  {n:"Def",t:"On a Beat to Windward",s:"A boat is on a beat to windward when, to make progress towards the next mark, she must tack. She is not on a beat when she can fetch the next mark without tacking."},
+  {n:"Def",t:"Overlap",s:"Two boats overlap when neither is clear astern. Overlap begins when the boats are no longer clear astern of each other and ends when one is again clear astern. The overlap status is measured at the zone boundary."},
+  {n:"Def",t:"Proper Course",s:"A course a boat would sail to finish as soon as possible in the absence of the other boats referred to in the rule using the term. A boat has no proper course before her starting signal."},
+  {n:"Def",t:"Racing",s:"A boat is racing from her preparatory signal until she finishes and clears the finishing line, or retires, or until the race committee signals a general recall, postponement or abandonment."},
+  {n:"Def",t:"Room",s:"The space a boat needs in the existing conditions while manoeuvring promptly in a seamanlike way. This is a practical test — it accounts for wind, sea state and the speed of the boats involved."},
+  {n:"Def",t:"Start",s:"A boat starts when, having been entirely on the pre-start side of the starting line at or after her starting signal, and having complied with rule 30.1 if applicable, any part of her hull crosses the starting line."},
+  {n:"Def",t:"Tack (noun)",s:"A boat's tack (starboard or port) is determined by the side from which the wind blows. She is on starboard tack when the wind blows from her starboard side. When sailing on a dead run, her tack is the side of the boom."},
+  {n:"Def",t:"Zone",s:"The area around a mark within a distance of three hull lengths of the boat nearer to it. The zone is used to determine when rule 18 (mark-room) applies. A boat is in the zone when any part of her hull is in it."},
+  {n:"Def",t:"Clear Astern / Clear Ahead",s:"One boat is clear astern of another when her hull and equipment in normal position are behind a line abeam from the aftermost point of the other boat's hull and equipment in normal position."},
+  {n:"Def",t:"Sail",s:"A boat sails when she uses only the wind and water to move. She may adjust her sails, move her crew weight, and use her rudder. Using an engine, oars, or paddles to propel the boat (except in an emergency) is not allowed."},
+  {n:"Def",t:"Boat",s:"In the racing rules, 'boat' means a sailboat and the crew, equipment and gear on board. The owner and anyone in charge of the boat are responsible for compliance with the rules at all times."},
+
+  // ── PART 1: FUNDAMENTAL RULES ─────────────────────────────────────────────
+  {n:"1",t:"Safety",s:"A boat or competitor shall give all possible help to any person or vessel in danger. Rendering assistance shall not be penalised even if it requires breaking a rule. Safety always comes before racing."},
+  {n:"2",t:"Fair Sailing",s:"A boat and her owner shall compete only by sailing, using their crew's physical effort, and obeying the rules. An action or omission that is a deliberate breach of the rules or unsportsmanlike is a serious violation."},
+  {n:"3",t:"Acceptance of the Rules",s:"By entering a race, each competitor agrees to be governed by the racing rules, to accept the penalties imposed, and to act in good faith throughout the event — including during any protest hearing."},
+
+  // ── PART 2: RIGHT OF WAY ──────────────────────────────────────────────────
+  {n:"10",t:"On Opposite Tacks",s:"When boats are on opposite tacks, a port-tack boat shall keep clear of a starboard-tack boat. This is one of the most commonly invoked rules and applies whenever two boats are sailing on different tacks."},
+  {n:"11",t:"On the Same Tack, Overlapped",s:"When boats are on the same tack and overlapped, a windward boat shall keep clear of a leeward boat. The leeward boat has right of way but is subject to rules 15 and 16 if she acquired it or changes course."},
+  {n:"12",t:"On the Same Tack, Not Overlapped",s:"When boats are on the same tack and not overlapped, a boat clear astern shall keep clear of a boat clear ahead. This rule prevents boats from simply sailing into the transom of the boat ahead."},
+  {n:"13",t:"While Tacking",s:"After a boat passes head to wind she shall keep clear of other boats until she is on a close-hauled course. Rules 10, 11 and 12 do not apply to her during this time — she must keep clear of everyone."},
+  {n:"14",t:"Avoiding Contact",s:"A boat shall avoid contact with another boat if reasonably possible. A right-of-way boat that does not avoid contact when it was reasonably possible commits a breach — even if the other boat broke a rule first."},
+  {n:"15",t:"Acquiring Right of Way",s:"When a boat acquires right of way, she shall initially give the other boat room to keep clear. This prevents a boat from suddenly establishing right of way and immediately demanding the other boat respond."},
+  {n:"16.1",t:"Changing Course",s:"When a right-of-way boat changes course, she shall give the other boat room to keep clear. A leeward boat that bears away or luffs rapidly without giving the windward boat time to respond breaks this rule."},
+  {n:"16.2",t:"Changing Course: Leeward on Same Tack",s:"In addition to rule 16.1, when after the starting signal a port-tack boat is keeping clear by sailing to pass astern of a starboard-tack boat, the starboard-tack boat shall not change course if it would prevent the port-tack boat keeping clear."},
+  {n:"17",t:"On the Same Tack; Proper Course",s:"If a boat clear astern becomes overlapped within two of her hull lengths to leeward, she shall not sail above her proper course while they remain overlapped and within that distance — preventing aggressive bear-aways at close quarters."},
+  {n:"18.1",t:"Mark-Room: When Rule 18 Applies",s:"Rule 18 applies between boats when they are required to leave a mark on the same side and at least one of them has been in the three-length zone. It does not apply at a starting mark surrounded by navigable water."},
+  {n:"18.2",t:"Mark-Room: Giving Mark-Room",s:"When boats are overlapped at the zone boundary, the outside boat shall give the inside boat mark-room. If not overlapped at the zone, the clear-ahead boat gets mark-room and the other boat shall give it."},
+  {n:"18.3",t:"Tacking in the Zone",s:"If a boat in the zone tacks from port to starboard and is then on the same tack as a boat fetching the mark, she shall give that boat mark-room and keep clear until she is fetching the mark herself."},
+  {n:"18.4",t:"Gybing at a Mark",s:"When an inside overlapped right-of-way boat must gybe at a mark to sail her proper course, she shall gybe at the first reasonable opportunity. This prevents an inside boat using her rights to delay gybing indefinitely."},
+  {n:"19",t:"Room to Pass an Obstruction",s:"At an obstruction, a right-of-way boat may choose either side. When hailed for room, the hailed boat shall give room on the side the hailing boat specifies. The hailed boat may not choose to pass on the other side."},
+  {n:"20",t:"Room to Tack at an Obstruction",s:"A boat approaching an obstruction may hail for room to tack. The hailed boat shall either tack at the earliest opportunity, or respond 'You tack' — in which case the hailing boat shall tack immediately."},
+  {n:"21",t:"Exoneration",s:"A boat exonerated for breaking a rule of Part 2 or rule 31 if she was compelled to do so because another boat failed to keep clear, give room, or give mark-room as required. She takes no penalty."},
+  {n:"22",t:"Starting Errors; Taking Penalties; Moving Astern",s:"A boat returning to the pre-start side after being OCS shall keep clear of all others not doing so. A boat taking a penalty shall keep clear. A boat moving astern shall keep clear of boats not doing so."},
+  {n:"23",t:"Capsized, Anchored or Aground",s:"If reasonably possible, a boat shall avoid a boat that is capsized, has not yet recovered, is anchored, aground, or is rescuing or being rescued. A capsized boat that can hail is expected to do so."},
+  {n:"24.1",t:"Interfering with Another Boat",s:"Except when sailing her proper course, a boat shall not manoeuvre to interfere with a boat taking a penalty or sailing on the course side of the line after a recall to start correctly."},
+  {n:"24.2",t:"Not Interfering When Not Racing",s:"A boat not racing shall not interfere with a boat that is racing. This includes spectator vessels and boats that have finished or retired — they must stay clear of boats still competing."},
+
+  // ── PART 3: CONDUCT AT MARKS AND OBSTRUCTIONS ─────────────────────────────
+  {n:"27",t:"Other Race Committee Actions Before the Start",s:"No later than the warning signal the race committee shall display the course. The race committee may also move a starting mark and signal that boats shall not sail in a specified area."},
+  {n:"28",t:"Sailing the Course",s:"A boat shall start, leave each mark on the required side in the correct order, and finish. A string representing her track shall touch each mark. She may correct an error before finishing — provided she does not finish in the process."},
+  {n:"29.1",t:"Individual Recall",s:"When any part of a boat's hull is on the course side at her starting signal, the race committee shall signal an individual recall. The boat shall return to the pre-start side across one of the course ends before starting."},
+  {n:"29.2",t:"General Recall",s:"When the race committee is uncertain whether a boat is OCS, or there has been an infringement near the start, it may signal a general recall with the First Substitute flag and two blasts. All boats restart."},
+  {n:"30.1",t:"I Flag Rule",s:"If a boat is in the triangle formed by the ends of the starting line and the first mark during the last minute before her starting signal, she shall sail to the pre-start side to start — even if there is a general recall."},
+  {n:"30.2",t:"Z Flag Rule",s:"If a boat is in the zone of the starting line during the last minute before her starting signal, she receives a 20% scoring penalty without a hearing — even if there is a general recall (unless it is a black flag recall)."},
+  {n:"30.3",t:"Black Flag Rule",s:"If a boat is OCS in the last minute before her starting signal when the black flag rule is in force, she is disqualified without a hearing. A general recall does not remove this disqualification."},
+  {n:"31",t:"Touching a Mark",s:"A boat shall not touch a starting mark before she has started, a mark bounding the leg she is sailing, or a finishing mark. If she does, she shall exonerate herself by promptly taking a one-turn penalty."},
+  {n:"32",t:"Shortening or Abandoning After the Start",s:"The race committee may shorten the course (S flag + two sounds) or abandon the race (three or more sounds). Shortening is usually done at a windward mark or gate. Abandonment means the race does not count."},
+  {n:"33",t:"Changing the Next Leg",s:"The race committee may change a leg of the course by moving the mark or substituting a nearby mark, provided each change is signalled before the leading boat begins the leg and is consistent with the course signalled."},
+
+  // ── PART 4: OTHER REQUIREMENTS ────────────────────────────────────────────
+  {n:"40",t:"Personal Flotation Devices",s:"When the race committee makes a signal, all competitors shall wear personal flotation devices, except briefly while changing or adjusting clothing. Sailing instructions may make this a permanent requirement."},
+  {n:"41",t:"Outside Help",s:"A boat shall not receive outside help except help for an ill or injured crew, help from a boat not racing, or information freely available to all (such as a tidal forecast). Coaching from a support boat during a race is prohibited."},
+  {n:"42.1",t:"Propulsion: Basic Rule",s:"A boat shall use only the wind and water to move. Crew may trim sails, adjust hull trim, and perform seamanship. Repeated body movements, sail pumping, or rocking to propel the boat faster than the wind allows is illegal."},
+  {n:"42.2",t:"Prohibited Actions",s:"Prohibited: pumping (repeated trimming unrelated to wind changes), rocking (repeated rolling), ooching (jerking body weight forward), sculling (repeated rudder movements), and repeated tacking/gybing for propulsion."},
+  {n:"42.3",t:"Exceptions",s:"Allowed: a single pump per wave or gust to initiate surfing/planing, a single gybe in a gust, manual bilge pumping, and adjusting sails after a capsize. Class rules may further restrict or permit actions."},
+  {n:"43",t:"Competitor Clothing and Equipment",s:"A competitor shall not wear or carry clothing or equipment for the purpose of increasing body weight. Wet clothing used for insulation or protection is allowed. Class rules define what is permitted in their class."},
+  {n:"44.1",t:"Penalties: When to Take a Penalty",s:"A boat that may have broken a rule of Part 2 or rule 31 while racing may take a penalty. Taking a penalty means the boat does not need to be protested — she accepts responsibility and removes her liability."},
+  {n:"44.2",t:"Two-Turns Penalty",s:"A two-turns penalty requires the boat to make two complete 360° turns in the same direction (two tacks and two gybes), promptly after getting clear of other boats. This is the standard penalty for most infringements."},
+  {n:"44.3",t:"Scoring Penalty",s:"If the sailing instructions say so, a boat may take a scoring penalty (usually adding 20% of the fleet to her score) instead of turns. She must notify the race committee at the finish line."},
+  {n:"45",t:"Hauling Out; Making Fast; Anchoring",s:"Unless in danger or permitted by the sailing instructions, a boat shall not haul out, make fast or anchor. She may anchor briefly when working out how to round a mark, but shall not hold a tacking or other advantage by anchoring."},
+  {n:"47",t:"Crew",s:"Competitors shall be on board at the starting signal and stay on board until finishing or retiring, unless they fall overboard. A crew member who falls overboard may be hauled back on board."},
+  {n:"48",t:"Fog Signals and Lights",s:"When racing in restricted visibility or at night, a boat shall comply with the IRPCAS rules on fog signals and navigation lights. Racing rules do not override collision regulations when vessels are in restricted visibility."},
+  {n:"49",t:"Crew Position; Lifelines",s:"No body part shall be outside the lifelines except briefly. When a spinnaker sheet or guy is outside a lifeline, the crew member handling it may be outside the lifelines while doing so, but shall return inboard promptly."},
+  {n:"50",t:"Setting and Sheeting Sails",s:"A spinnaker shall be set from a spinnaker pole or a bowsprit. Sails shall not be set flying (unattached). A headsail tack shall be attached at or behind the forestay. Class rules may further restrict sail handling."},
+  {n:"52",t:"Manual Power",s:"A boat's running rigging, spars and movable appendages shall be adjusted by manual power only — no hydraulics, electrical or stored energy systems — unless class rules specifically permit them."},
+  {n:"55",t:"Trash Disposal",s:"A competitor shall not intentionally put trash in the water. This applies at all times when racing, not just in official racing areas. Responsible environmental behaviour is expected of all competitors."},
+
+  // ── PART 5: PROTESTS, REDRESS, MISCONDUCT ─────────────────────────────────
+  {n:"60",t:"Right to Protest",s:"A boat may protest another boat, or request redress for herself or another boat. A race committee or protest committee may protest a boat, or call a hearing without a protest being filed."},
+  {n:"61.1",t:"Protest: Informing the Protestee",s:"A boat intending to protest shall hail 'Protest' at the time of the incident and display a red flag as soon as reasonably possible. She shall tell the race committee and protestee she intends to protest."},
+  {n:"61.2",t:"Protest: Filing",s:"A protest shall be in writing and filed with the race committee within the time limit specified. It shall describe the incident clearly including the rules alleged to have been broken."},
+  {n:"62",t:"Redress",s:"Redress may be given when a boat's score is made significantly worse through no fault of her own — from a race committee error, physical damage from another boat, giving help, or an act of misconduct by a third party."},
+  {n:"63",t:"Hearings",s:"All parties to a hearing shall be notified and given adequate time to prepare. Parties may call witnesses. An interested party shall not be on the protest committee. The hearing shall be conducted fairly and promptly."},
+  {n:"64",t:"Decisions",s:"If a boat is found to have broken a rule and is not exonerated, she shall be penalised — usually by disqualification. The protest committee shall consider all the facts found when determining the appropriate penalty."},
+  {n:"65",t:"Informing the Parties",s:"After a hearing, the protest committee shall promptly inform the parties of its decision: the facts found, which rules were broken, the penalty imposed, and the parties' right to appeal."},
+  {n:"66",t:"Reopening a Hearing",s:"The protest committee may reopen a hearing if it may have made a significant error of interpretation or new evidence becomes available. A party may request a reopening within the time limit."},
+  {n:"67",t:"Damages",s:"Taking a penalty or being penalised at a hearing does not remove liability for damages. A boat that causes damage by breaking a rule may still face a civil claim from the other boat's owner."},
+  {n:"68",t:"Damages Claims",s:"A competitor may make a claim for damages caused by another boat that has broken a rule. The protest committee may make findings of fact, but the claim itself is dealt with under the laws of the relevant jurisdiction."},
+  {n:"69",t:"Misconduct",s:"A competitor shall not commit an act of misconduct. This includes cheating, deliberate rule-breaking, bullying, intimidation, or bringing the sport into disrepute. The penalty may be exclusion from future races or events."},
+
+  // ── PART 6: ENTRY AND QUALIFICATIONS ──────────────────────────────────────
+  {n:"75",t:"Entering a Race",s:"A boat shall enter a race as required by the notice of race and sailing instructions — including paying any entry fee. By entering, the competitor agrees to be governed by the racing rules and sailing instructions."},
+  {n:"76",t:"Exclusion of Boats or Competitors",s:"An organising authority or race committee may, before the start of a race, exclude any boat or competitor. This is rarely used but exists for safety or conduct reasons."},
+  {n:"78",t:"Compliance with Class Rules",s:"The owner and person in charge of a boat is responsible at all times for the boat complying with her class rules. A valid rating certificate or measurement certificate must be available for inspection."},
+  {n:"79",t:"Sail Numbers",s:"A boat shall carry the national letters, sail numbers and any other markings required by class rules and the notice of race. Numbers shall be correct in format, clearly visible and not obscured by other equipment."},
+  {n:"80",t:"Advertising",s:"A boat shall not display advertising unless it complies with the WORLD SAILING Advertising Code. Class insignia, national letters and sail numbers are not advertising. Sailing instructions may permit or require sponsor logos."},
+
+  // ── PART 7: RACE ORGANISATION ─────────────────────────────────────────────
+  {n:"85",t:"Governing Rules",s:"The racing rules of sailing govern all racing. Where there is a conflict, the order of precedence is: prescription of a national authority, the notice of race, the sailing instructions, and then the racing rules."},
+  {n:"86",t:"Changes to the Racing Rules",s:"The racing rules may be changed by the notice of race or sailing instructions, but only within the limits permitted by WORLD SAILING. Class rules may also change specific rules as permitted."},
+  {n:"87",t:"Changes to Class Rules",s:"The sailing instructions may change a class rule only if the class rules permit such changes, or if written permission is obtained from the relevant class authority."},
+  {n:"88",t:"National Prescriptions",s:"A national authority (such as the RYA) may prescribe changes to certain rules for racing in its jurisdiction. These prescriptions apply to all racing governed by that authority unless the sailing instructions state otherwise."},
+  {n:"89",t:"Organising Authority",s:"The organising authority is responsible for running the event within the racing rules. It may delegate race management to a race committee, and appoint protest and measurement committees."},
+  {n:"90",t:"Race Committee",s:"The race committee shall run the race as directed by the organising authority and in compliance with the racing rules. Its responsibilities include starting, shortening, abandoning, and recording finish times."},
+  {n:"91",t:"Protest Committee",s:"The protest committee shall hear protests and requests for redress fairly and promptly. Its decisions on questions of fact are final. Its interpretations of the rules may be appealed to the national authority."},
+];
+
 const TIDES={
   "2026-01-01":{t1:"04:33",h1:0.7,t2:"10:46",h2:5.2,t3:"16:59",h3:0.7,t4:"23:11",h4:5.2},
   "2026-01-02":{t1:"05:24",h1:0.7,t2:"11:36",h2:5.2,t3:"17:49",h3:0.7},
@@ -2189,6 +2297,28 @@ function render(){
       <div style="margin-top:12px;font-size:12px;color:var(--txt3);text-align:right;">Full calendar ›</div>
     </div>
     `:'<div class="card" style="padding:24px;text-align:center;color:var(--txt3);">No upcoming races scheduled</div>'}
+
+    ${(()=>{
+      const doy=(()=>{const n=new Date();const s=new Date(n.getFullYear(),0,0);return Math.floor((n-s)/86400000);})();
+      const rule=SAILING_RULES[doy%SAILING_RULES.length];
+      return `
+      <a href="https://www.rya.org.uk/racing/rules" target="_blank" rel="noopener" style="text-decoration:none;">
+        <div class="card" style="padding:20px;background:var(--bg2);border-left:3px solid #c0122b;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:18px;">⚖️</span>
+              <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);">Sailors' Daily Digest</span>
+            </div>
+            <span style="font-size:11px;color:var(--txt3);">RYA Rules ›</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+            <span style="font-size:22px;font-weight:900;color:#c0122b;letter-spacing:-.5px;">${rule.n==='Def'?'Definition':('Rule '+rule.n)}</span>
+            <span style="font-size:15px;font-weight:700;color:var(--txt);">${rule.t}</span>
+          </div>
+          <div style="font-size:13px;color:var(--txt2);line-height:1.6;">${rule.s}</div>
+        </div>
+      </a>`;
+    })()}
 
     `;})()}
   </div>
