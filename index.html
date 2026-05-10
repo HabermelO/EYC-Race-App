@@ -675,7 +675,7 @@ let savePillTimer=null;
 function saveState(){
   try{
     localStorage.setItem(LS_KEY,JSON.stringify({
-      mainTab:S.mainTab,raceTab:S.raceTab,calFilter:S.calFilter,courseTab:S.courseTab,resultsTab:S.resultsTab,bfleetTab:S.bfleetTab,
+      mainTab:S.mainTab,raceTab:S.raceTab,calFilter:S.calFilter,courseTab:S.courseTab,resultsTab:S.resultsTab,bfleetTab:S.bfleetTab,eodTab:S.eodTab,
       comps:S.comps,status:S.status,startTime:S.startTime,elapsed:S.elapsed,
       sailInput:S.sailInput,classIdx:S.classIdx,pyInput:S.pyInput,customName:S.customName,
       nextId:S.nextId,showLateAdd:S.showLateAdd,shortenedCourse:S.shortenedCourse,
@@ -693,7 +693,7 @@ function loadState(){
     const raw=localStorage.getItem(LS_KEY);if(!raw)return;
     const sn=JSON.parse(raw);
     S.mainTab=sn.mainTab||'home';S.raceTab=sn.raceTab||'competitors';
-    S.calFilter=sn.calFilter||'all';S.courseTab=sn.courseTab||'courses';S.resultsTab=sn.resultsTab||'bfleet';S.bfleetTab=sn.bfleetTab||'spring';
+    S.calFilter=sn.calFilter||'all';S.courseTab=sn.courseTab||'courses';S.resultsTab=sn.resultsTab||'bfleet';S.bfleetTab=sn.bfleetTab||'spring';S.eodTab=sn.eodTab||'forwardhands';
     S.comps=sn.comps||[];S.status=sn.status||'idle';
     S.startTime=sn.startTime||null;S.elapsed=sn.elapsed||0;
     S.sailInput=sn.sailInput||'';S.classIdx=sn.classIdx||0;
@@ -728,7 +728,7 @@ function loadState(){
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 let S={
-  mainTab:'home',raceTab:'competitors',calFilter:'all',courseTab:'courses',resultsTab:'bfleet',bfleetTab:'spring',wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
+  mainTab:'home',raceTab:'competitors',calFilter:'all',courseTab:'courses',resultsTab:'bfleet',bfleetTab:'spring',eodTab:'forwardhands',wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
   showLateAdd:false,shortenedCourse:false,bulkFinish:false,rollingStarts:false,
@@ -1054,6 +1054,7 @@ function fmtRYATime(ms){
 window.setMain=t=>{S.mainTab=t;saveState();if(t==='weather'||t==='home')fetchWeather();else{if(t==='calendar'&&navigator.onLine&&(!S.wxData||Date.now()-S.wxFetched>1800000))fetchWeather();render();}};
 window.setResultsTab=t=>{S.resultsTab=t;saveState();render();};
 window.setBfleetTab=t=>{S.bfleetTab=t;saveState();render()};
+window.setEodTab=t=>{S.eodTab=t;saveState();render();};
 window.setRaceTab=t=>{S.raceTab=t;saveState();render();};
 window.setFilter=f=>{S.calFilter=f;saveState();render();};
 window.toggleCal=d=>{
@@ -2393,17 +2394,44 @@ function render(){
       </div>
     `:''}
   `:''}
-  ${['eod','cruiser','trophy'].includes(S.resultsTab)?`
+  ${S.resultsTab==='eod'?`
+    <div class="sub-tabs" style="margin-bottom:1rem;">
+      <button class="sub-tab ${S.eodTab==='forwardhands'?'active':''}" onclick="setEodTab('forwardhands')">Forward Hands Trophy</button>
+      <button class="sub-tab ${S.eodTab==='tonymoore'?'active':''}" onclick="setEodTab('tonymoore')">Tony Moore Trophy</button>
+    </div>
+    ${S.eodTab==='forwardhands'?`
+      <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
+        <iframe src="https://www.essexyachtclub.co.uk/results/EOD%20Forward%20Hands%20Trophy%202026.htm"
+          style="width:100%;height:calc(100vh - 300px);min-height:480px;border:none;display:block;"
+          loading="lazy" title="EOD Forward Hands Trophy 2026 Results"></iframe>
+      </div>
+      <div style="margin-top:8px;text-align:center;">
+        <a href="https://www.essexyachtclub.co.uk/results/EOD%20Forward%20Hands%20Trophy%202026.htm" target="_blank" rel="noopener"
+           style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
+      </div>
+    `:''}
+    ${S.eodTab==='tonymoore'?`
+      <div style="border-radius:var(--radius-lg);overflow:hidden;border:.5px solid var(--border);background:var(--bg);">
+        <iframe src="https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm"
+          style="width:100%;height:calc(100vh - 300px);min-height:480px;border:none;display:block;"
+          loading="lazy" title="Tony Moore Memorial Trophy 2026 Results"></iframe>
+      </div>
+      <div style="margin-top:8px;text-align:center;">
+        <a href="https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm" target="_blank" rel="noopener"
+           style="font-size:12px;color:var(--blue-txt);text-decoration:none;">&#8599; Open full page in browser</a>
+      </div>
+    `:''}
+  `:''}
+
+  ${['cruiser','trophy'].includes(S.resultsTab)?`
     <div style="border-radius:var(--radius-lg);border:.5px solid var(--border);background:var(--bg);padding:2.5rem 1.5rem;text-align:center;">
-      <div style="font-size:36px;margin-bottom:12px;">${S.resultsTab==='trophy'?'🏆':S.resultsTab==='cruiser'?'⛵':'🚤'}</div>
+      <div style="font-size:36px;margin-bottom:12px;">${S.resultsTab==='trophy'?'🏆':'⛵'}</div>
       <div style="font-weight:700;font-size:15px;margin-bottom:6px;">
-        ${S.resultsTab==='eod'?'EOD Results':S.resultsTab==='cruiser'?'Cruiser Results':'Trophy Race Results'}
+        ${S.resultsTab==='cruiser'?'Cruiser Results':'Trophy Race Results'}
       </div>
       <div style="font-size:13px;color:var(--txt2);line-height:1.6;">Results link not yet configured.<br>Add the URL to display results here.</div>
     </div>
   `:''}
-  `:''}\n
-  ${S.mainTab==='weather'?`
   <div style="margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;">
     <div>
       <div style="font-size:15px;font-weight:700;">3-Day Forecast</div>
