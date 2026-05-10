@@ -836,7 +836,7 @@ function loadState(){
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 let S={
-  mainTab:'home',raceTab:'competitors',calFilter:'all',courseTab:'courses',resultsTab:'bfleet',bfleetTab:'spring',eodTab:'forwardhands',resultsData:null,resultsLoaded:false,activeResult:{},wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
+  mainTab:'home',raceTab:'competitors',calFilter:'all',courseTab:'courses',resultsTab:'bfleet',bfleetTab:'spring',eodTab:'forwardhands',resultsData:null,resultsLoaded:false,activeResult:{},digestOffset:0,wxData:null,wxLoading:false,wxError:null,wxStale:false,wxFetched:0,wxExpanded:{},calExpanded:{},
   comps:[],status:'idle',startTime:null,elapsed:0,
   sailInput:'',classIdx:0,pyInput:1103,customName:'',nextId:1,timerRef:null,
   showLateAdd:false,shortenedCourse:false,bulkFinish:false,rollingStarts:false,
@@ -2162,18 +2162,7 @@ function render(){
           ${cond&&cond.warn?`<div style="font-size:11px;color:#c0122b;font-weight:700;margin-top:5px;background:#fdf0f2;border-radius:6px;padding:2px 8px;">${cond.warn}</div>`:''}
         </div>
       </div>
-      ${todayTides.all.length>0?`
-      <div style="background:rgba(255,255,255,.1);border-radius:12px;padding:12px 16px;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.6;margin-bottom:8px;">Today's Tides · Southend</div>
-        <div style="display:grid;grid-template-columns:repeat(${todayTides.all.length},1fr);gap:6px;">
-          ${todayTides.all.map(tide=>`
-          <div style="text-align:center;background:rgba(255,255,255,${tide.h>=3?'.15':'.08'});border-radius:8px;padding:8px 4px;">
-            <div style="font-size:10px;opacity:.65;margin-bottom:3px;">${tide.h>=3?'▲ HW':'▼ LW'}</div>
-            <div style="font-size:16px;font-weight:800;letter-spacing:-.3px;line-height:1;">${tide.t}</div>
-            <div style="font-size:11px;opacity:.7;margin-top:2px;">${tide.h}m</div>
-          </div>`).join('')}
-        </div>
-      </div>`:''}
+      ${todayTides.all.length>0?'':''}
       `:`
       <div style="opacity:.6;font-size:15px;padding:8px 0;">${S.wxLoading?'Fetching conditions…':'No weather data'}</div>
       `}
@@ -2284,7 +2273,8 @@ function render(){
             const finalBg=raceTideOut?'var(--bg)':rc.bg;
             const finalTxt=raceTideOut?'var(--txt3)':rc.txt;
             const finalBd=raceTideOut?'var(--border)':rc.bd;
-            return `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;align-self:center;">
+            return `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;align-self:center;background:var(--bg);border-radius:10px;padding:10px 12px;border:.5px solid var(--border);">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3);margin-bottom:2px;">Forecast</div>
               <div style="font-size:26px;line-height:1;">${wxIcon(wx.code)}</div>
               <div style="font-size:13px;font-weight:600;color:var(--txt2);">${wx.kn}kn ${wx.dir}${wx.gust?'<br><span style="font-size:11px;color:var(--txt3);">gusts '+wx.gust+'kn</span>':''}</div>
               <div style="background:${finalBg};color:${finalTxt};border:1px solid ${finalBd};border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;text-align:center;">${finalLabel}</div>
@@ -2300,24 +2290,27 @@ function render(){
 
     ${(()=>{
       const doy=(()=>{const n=new Date();const s=new Date(n.getFullYear(),0,0);return Math.floor((n-s)/86400000);})();
-      const rule=SAILING_RULES[doy%SAILING_RULES.length];
+      const idx=(doy+(S.digestOffset||0))%SAILING_RULES.length;
+      const rule=SAILING_RULES[idx];
       return `
-      <a href="https://www.rya.org.uk/racing/rules" target="_blank" rel="noopener" style="text-decoration:none;">
-        <div class="card" style="padding:20px;background:var(--bg2);border-left:3px solid #c0122b;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:18px;">⚖️</span>
-              <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);">Sailors' Daily Digest</span>
-            </div>
-            <span style="font-size:11px;color:var(--txt3);">RYA Rules ›</span>
+      <div class="card" style="padding:20px;background:var(--bg2);border-left:3px solid #4f6db8;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:18px;">⚖️</span>
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);">Sailors' Daily Digest</span>
           </div>
-          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
-            <span style="font-size:22px;font-weight:900;color:#c0122b;letter-spacing:-.5px;">${rule.n==='Def'?'Definition':('Rule '+rule.n)}</span>
-            <span style="font-size:15px;font-weight:700;color:var(--txt);">${rule.t}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button onclick="event.stopPropagation();S.digestOffset=((S.digestOffset||0)+1);render();" style="font-size:11px;padding:3px 10px;border-radius:99px;background:var(--bg);border:.5px solid var(--border);color:var(--txt2);cursor:pointer;font-weight:600;">Next ›</button>
+            <a href="https://www.rya.org.uk/racing/rules" target="_blank" rel="noopener" style="font-size:11px;color:var(--txt3);text-decoration:none;">RYA ›</a>
           </div>
-          <div style="font-size:13px;color:var(--txt2);line-height:1.6;">${rule.s}</div>
         </div>
-      </a>`;
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+          <span style="font-size:22px;font-weight:900;color:#4f6db8;letter-spacing:-.5px;">${rule.n==='Def'?'Definition':('Rule '+rule.n)}</span>
+          <span style="font-size:15px;font-weight:700;color:var(--txt);">${rule.t}</span>
+        </div>
+        <div style="font-size:13px;color:var(--txt2);line-height:1.6;">${rule.s}</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--txt3);">${idx+1} of ${SAILING_RULES.length} · resets daily</div>
+      </div>`;
     })()}
 
     `;})()}
