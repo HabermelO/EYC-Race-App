@@ -52,6 +52,11 @@
   button:hover{background:var(--bg2);}button:active{opacity:.8;}button:disabled{opacity:.4;cursor:not-allowed;}
   .card{background:var(--bg);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06);}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.65;}}
+  @keyframes shuffle-spin{0%{transform:rotate(0deg) scale(1);}40%{transform:rotate(180deg) scale(1.25);}100%{transform:rotate(360deg) scale(1);}}
+  .shuffle-btn{background:none;border:none;padding:4px 6px;border-radius:8px;font-size:18px;cursor:pointer;line-height:1;color:var(--txt3);transition:color .15s,background .15s;}
+  .shuffle-btn:hover{background:var(--bg3);color:var(--txt2);}
+  .shuffle-btn:active{opacity:.7;}
+  .shuffle-btn.spinning{animation:shuffle-spin .45s cubic-bezier(.4,0,.2,1) forwards;}
   .main-tabs{display:flex;background:var(--bg);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:4px;gap:4px;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,.05);}
   .main-tab{flex:1;border:none;border-radius:8px;background:none;padding:10px 4px;font-size:12px;font-weight:500;color:var(--txt2);cursor:pointer;transition:background .15s,color .15s;}
   .main-tab.active{background:var(--blue-bg);color:var(--blue-txt);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08);}
@@ -790,7 +795,7 @@ function saveState(){
       lateSailInput:S.lateSailInput,lateClassIdx:S.lateClassIdx,
       latePyInput:S.latePyInput,lateCustomName:S.lateCustomName,
       actionHistory:S.actionHistory,redoHistory:S.redoHistory,raceNotes:S.raceNotes,
-      bulkFinish:S.bulkFinish,rollingStarts:S.rollingStarts
+      bulkFinish:S.bulkFinish,rollingStarts:S.rollingStarts,digestOffset:S.digestOffset||0
     }));
     const pill=document.getElementById('save-pill');
     if(pill){pill.style.opacity='1';clearTimeout(savePillTimer);savePillTimer=setTimeout(()=>{pill.style.opacity='0';},1500);}
@@ -815,6 +820,7 @@ function loadState(){
     S.raceNotes=sn.raceNotes||'';
     S.bulkFinish=sn.bulkFinish||false;
     S.rollingStarts=sn.rollingStarts||false;
+    S.digestOffset=sn.digestOffset||0;
     // Restore cached weather data from separate localStorage key
     try{
       const wxRaw=localStorage.getItem('eyc_wx_cache');
@@ -1516,21 +1522,83 @@ function fmtDayLabel(iso){
   return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 }
 
+// ─── Client-side results categorisation ────────────────────────────────────
+// This overrides whatever categories results.json assigns, using the result
+// name/filename as the authoritative source of truth.
+// To future-proof: add keywords to the correct bucket below.
+const RESULT_CATEGORIES = [
+  {
+    id: 'bfleet',
+    label: 'B Fleet',
+    emoji: '🏁',
+    // Matches B Fleet series results (spring, summer, autumn, bank holiday etc.)
+    // Explicitly NOT trophy races — those are caught by the trophy bucket below
+    keywords: ['b fleet','bfleet','b-fleet','spring series','summer series','autumn series','bank holiday','may series','june series','july series','august series','september series','october series'],
+    // Keywords that must NOT appear (to avoid false positives like "B Fleet Trophy")
+    exclude: ['trophy','cup','tin mug','tin-mug']
+  },
+  {
+    id: 'eod',
+    label: 'EOD',
+    emoji: '⛵',
+    keywords: ['eod','end of day','tony moore','ian perkins','edwards casket','turmaine','mini shoreline','peter cotgrove','velsheda','symons cup','interclub dinghy','forward hands','forwardhands','ladies in eod','eod fun'],
+    exclude: []
+  },
+  {
+    id: 'trophy',
+    label: 'Trophies',
+    emoji: '🏆',
+    // Named trophies and one-off championship events
+    keywords: ['trophy','cup','tin mug','tin-mug','championship','championships','open meeting','pursuit','harty ferry','breakfast race','cruiser'],
+    exclude: []
+  }
+];
+
+function categoriseResults(data){
+  // Collect ALL results from all categories into a flat pool
+  const allResults = [];
+  (data.categories||[]).forEach(cat=>{
+    (cat.results||[]).forEach(r=>{
+      // Avoid duplicates by url
+      if(!allResults.find(x=>x.url===r.url)) allResults.push(r);
+    });
+  });
+
+  // Build fresh categories, assigning each result to the first matching bucket
+  const built = RESULT_CATEGORIES.map(def=>({...def, results:[]}));
+  const unmatched = {id:'other', label:'Other', emoji:'📋', keywords:[], exclude:[], results:[]};
+
+  allResults.forEach(r=>{
+    const hay = ((r.name||'')+'|'+(r.filename||'')+'|'+(r.url||'')).toLowerCase();
+    let placed = false;
+    for(const cat of built){
+      const hits = cat.keywords.some(kw=>hay.includes(kw));
+      const excluded = cat.exclude.some(kw=>hay.includes(kw));
+      if(hits && !excluded){
+        cat.results.push(r);
+        placed = true;
+        break;
+      }
+    }
+    if(!placed) unmatched.results.push(r);
+  });
+
+  // Only include categories that have results; append 'other' if anything fell through
+  const cats = built.filter(c=>c.results.length>0);
+  if(unmatched.results.length>0) cats.push(unmatched);
+  return {...data, categories: cats};
+}
+
 async function fetchResults(){
   if(S.resultsLoaded)return; // already loaded this session
   try{
     const resp=await fetch('results.json?_='+Date.now());
     if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const data=await resp.json();
+    const raw=await resp.json();
+    // Re-categorise client-side so the JSON structure doesn't matter
+    const data=categoriseResults(raw);
     S.resultsData=data;
     S.resultsLoaded=true;
-    // Set sensible default sub-tabs from loaded data
-    if(data.categories){
-      data.categories.forEach(cat=>{
-        if(cat.id==='bfleet'&&cat.results.length>0&&!S.bfleetTab)S.bfleetTab=cat.results[0].filename;
-        if(cat.id==='eod'&&cat.results.length>0&&!S.eodTab)S.eodTab=cat.results[0].filename;
-      });
-    }
     render();
   }catch(e){
     console.warn('[EYC] Could not load results.json:',e.message);
@@ -2077,10 +2145,17 @@ function render(){
       }
     }
     const isRising=prevTide&&nextTide?(nextTide.h>prevTide.h):null;
-    const minsToNext=nextTide?(toMins(nextTide.t)-nowMins):null;
-    const minsSincePrev=prevTide?(nowMins-toMins(prevTide.t)):null;
-    const totalSpan=(prevTide&&nextTide)?(toMins(nextTide.t)-toMins(prevTide.t)):null;
-    const progress=(minsSincePrev!=null&&totalSpan)?(minsSincePrev/totalSpan):null;
+    // prevTide may be from yesterday: if its clock-minutes exceed nowMins it crossed midnight,
+    // so subtract 1440 to place it before now on the same number line.
+    const prevMins=prevTide?(()=>{const m=toMins(prevTide.t);return m>nowMins?m-1440:m;})():null;
+    const nextMins=nextTide?toMins(nextTide.t):null;
+    const minsToNext=nextMins!=null?(nextMins-nowMins):null;
+    const minsSincePrev=prevMins!=null?(nowMins-prevMins):null;
+    // totalSpan is always prev->next on the same timeline, so is never negative
+    const totalSpan=(prevMins!=null&&nextMins!=null)?(nextMins-prevMins):null;
+    const progress=(minsSincePrev!=null&&totalSpan&&totalSpan>0)
+      ?Math.min(1,Math.max(0,minsSincePrev/totalSpan))
+      :null;
 
     // live now weather
     const wxNow=(()=>{
@@ -2214,77 +2289,63 @@ function render(){
 
     <!-- ══ NEXT RACE CARD (combined) ══════════════════════════════════════════ -->
     ${race?`
-    <div class="card" style="padding:20px 20px 16px;cursor:pointer;" onclick="setMain('calendar')">
+    <div class="card" style="padding:16px 18px;cursor:pointer;border-left:3px solid #c0122b;" onclick="setMain('calendar')">
 
       <!-- header row -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);">${racingInProgress?'On The Water':'Next Race'}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);">${racingInProgress?'On The Water':'Next Race'}</span>
         ${racingInProgress
           ?`<span style="background:#c0122b;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em;animation:pulse 2s infinite;">⛵ Racing In Progress</span>`
           :isToday
-            ?`<span style="background:#c0122b;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em;">● LIVE TODAY</span>`
-            :`<span style="background:var(--bg2);color:${isTomorrow?'var(--amber-txt)':'var(--txt2)'};font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;">
-                ${isTomorrow?'Tomorrow':'In '+diffDays+' days'}
-              </span>`
+            ?`<span style="background:#c0122b;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.04em;">● Today</span>`
+            :`<span style="background:var(--bg2);color:${isTomorrow?'var(--amber-txt)':'var(--txt2)'};font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;">${isTomorrow?'Tomorrow':'In '+diffDays+' days'}</span>`
         }
       </div>
 
       <!-- event name -->
-      <div style="font-size:22px;font-weight:800;line-height:1.25;letter-spacing:-.3px;margin-bottom:14px;">${race.events}</div>
+      <div style="font-size:17px;font-weight:800;line-height:1.3;letter-spacing:-.2px;margin-bottom:12px;">${race.events}</div>
 
-      <!-- date + venue row -->
-      <div style="display:grid;grid-template-columns:1fr${race.loc?' 1fr':''};gap:10px;margin-bottom:${race.starts?'10px':'0'};">
-        <div style="background:var(--bg2);border-radius:10px;padding:12px;color:var(--txt3);">
-          <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">${svgCal}<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Date</span></div>
-          <div style="font-size:15px;font-weight:700;color:var(--txt);">${race.lbl}</div>
+      <!-- compact meta row: date · venue · starts -->
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt2);">
+          <span style="color:var(--txt3);flex-shrink:0;">${svgCal}</span>
+          <span style="font-weight:600;color:var(--txt);">${race.lbl}</span>
+          ${race.loc?`<span style="color:var(--txt3);">·</span><span style="color:var(--txt2);">${race.loc}</span>`:''}
         </div>
-        ${race.loc?`
-        <div style="background:var(--bg2);border-radius:10px;padding:12px;color:var(--txt3);">
-          <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">${svgPin}<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Venue</span></div>
-          <div style="font-size:15px;font-weight:700;color:var(--txt);">${race.loc}</div>
+        ${race.starts?`
+        <div style="display:flex;align-items:flex-start;gap:6px;font-size:13px;">
+          <span style="color:var(--txt3);flex-shrink:0;margin-top:1px;">${svgClock}</span>
+          <span style="font-weight:700;color:#c0122b;line-height:1.5;">${race.starts.split('·').map(s=>s.trim()).join('<span style="color:var(--txt3);margin:0 4px;">·</span>')}</span>
         </div>`:''}
       </div>
 
-      <!-- Race Start Time + race weather -->
-      ${race.starts?`
-      <div style="background:var(--bg2);border-radius:10px;padding:14px 16px;">
-        <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;color:var(--txt3);">${svgClock}<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Race Start Time</span></div>
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-          <div style="font-size:28px;font-weight:900;letter-spacing:-.5px;line-height:1.3;color:#c0122b;">
-            ${race.starts.split('·').map(s=>'<span style="display:block;">'+s.trim()+'</span>').join('')}
-          </div>
-          ${(()=>{
-            const wx=getCalWeather(race.d,race.starts);
-            if(!wx||wx.tooFar)return S.wxData
-              ?'<div style="font-size:12px;color:var(--txt3);align-self:center;">Forecast<br>not yet<br>available</div>'
-              :'<div style="font-size:12px;color:var(--txt3);align-self:center;">Load weather<br>for forecast</div>';
-            const rc=eycCondition(wx.kn,wx.gust||null);
-            // tide check at race time
-            const raceHW=TIDES[race.d]||null;
-            const raceTides=(()=>{
-              if(!raceHW)return[];
-              const t=[];for(let i=1;i<=4;i++){if(raceHW['t'+i]!=null)t.push({t:raceHW['t'+i],h:raceHW['h'+i]});}
-              return t.filter(x=>x.h>=3.0);
-            })();
-            const raceToMins=s=>{const[h,m]=s.split(':').map(Number);return h*60+m;};
-            const startM=(()=>{const m=race.starts.match(/(\d{1,2}):(\d{2})/);return m?(parseInt(m[1])*60+parseInt(m[2])):720;})();
-            const raceTideOut=raceTides.length>0&&raceTides.every(hw=>Math.abs(startM-raceToMins(hw.t))>210);
-            const finalLabel=raceTideOut?'Tide Out':rc.label;
-            const finalBg=raceTideOut?'var(--bg)':rc.bg;
-            const finalTxt=raceTideOut?'var(--txt3)':rc.txt;
-            const finalBd=raceTideOut?'var(--border)':rc.bd;
-            return `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;align-self:center;background:var(--bg);border-radius:10px;padding:10px 12px;border:.5px solid var(--border);">
-              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3);margin-bottom:2px;">Forecast</div>
-              <div style="font-size:26px;line-height:1;">${wxIcon(wx.code)}</div>
-              <div style="font-size:13px;font-weight:600;color:var(--txt2);">${wx.kn}kn ${wx.dir}${wx.gust?'<br><span style="font-size:11px;color:var(--txt3);">gusts '+wx.gust+'kn</span>':''}</div>
-              <div style="background:${finalBg};color:${finalTxt};border:1px solid ${finalBd};border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;text-align:center;">${finalLabel}</div>
-              ${rc.warn&&!raceTideOut?`<div style="font-size:11px;color:var(--red-txt);font-weight:700;">${rc.warn}</div>`:''}
-            </div>`;
-          })()}
-        </div>
-      </div>`:''}
+      <!-- weather strip (only when forecast available) -->
+      ${(()=>{
+        const wx=getCalWeather(race.d,race.starts);
+        if(!wx||wx.tooFar)return '';
+        const rc=eycCondition(wx.kn,wx.gust||null);
+        const raceHW=TIDES[race.d]||null;
+        const raceTides=(()=>{
+          if(!raceHW)return[];
+          const t=[];for(let i=1;i<=4;i++){if(raceHW['t'+i]!=null)t.push({t:raceHW['t'+i],h:raceHW['h'+i]});}
+          return t.filter(x=>x.h>=3.0);
+        })();
+        const raceToMins=s=>{const[h,m]=s.split(':').map(Number);return h*60+m;};
+        const startM=(()=>{const m=race.starts.match(/(\d{1,2}):(\d{2})/);return m?(parseInt(m[1])*60+parseInt(m[2])):720;})();
+        const raceTideOut=raceTides.length>0&&raceTides.every(hw=>Math.abs(startM-raceToMins(hw.t))>210);
+        const finalLabel=raceTideOut?'Tide Out':rc.label;
+        const finalBg=raceTideOut?'var(--bg3)':rc.bg;
+        const finalTxt=raceTideOut?'var(--txt3)':rc.txt;
+        const finalBd=raceTideOut?'var(--border)':rc.bd;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg2);border-radius:8px;flex-wrap:wrap;">
+          <span style="font-size:22px;line-height:1;">${wxIcon(wx.code)}</span>
+          <span style="font-size:13px;font-weight:600;color:var(--txt2);">${wx.kn}kn ${wx.dir}${wx.gust?' · gusts '+wx.gust+'kn':''}</span>
+          <span style="background:${finalBg};color:${finalTxt};border:.5px solid ${finalBd};border-radius:99px;padding:3px 10px;font-size:12px;font-weight:700;margin-left:auto;white-space:nowrap;">${finalLabel}</span>
+          ${rc.warn&&!raceTideOut?`<span style="font-size:11px;color:var(--red-txt);font-weight:700;width:100%;">${rc.warn}</span>`:''}
+        </div>`;
+      })()}
 
-      <div style="margin-top:12px;font-size:12px;color:var(--txt3);text-align:right;">Full calendar ›</div>
+      <div style="margin-top:10px;font-size:12px;color:var(--txt3);text-align:right;">Full calendar ›</div>
     </div>
     `:'<div class="card" style="padding:24px;text-align:center;color:var(--txt3);">No upcoming races scheduled</div>'}
 
@@ -2299,9 +2360,10 @@ function render(){
             <span style="font-size:18px;">⚖️</span>
             <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);">Sailors' Daily Digest</span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <button onclick="event.stopPropagation();S.digestOffset=((S.digestOffset||0)+1);render();" style="font-size:11px;padding:3px 10px;border-radius:99px;background:var(--bg);border:.5px solid var(--border);color:var(--txt2);cursor:pointer;font-weight:600;">Next ›</button>
+          <div style="display:flex;align-items:center;gap:6px;">
             <a href="https://www.rya.org.uk/racing/rules" target="_blank" rel="noopener" style="font-size:11px;color:var(--txt3);text-decoration:none;">RYA ›</a>
+            <button id="shuffle-btn" class="shuffle-btn" title="Show a different rule"
+              onclick="event.stopPropagation();(function(btn){btn.classList.remove('spinning');void btn.offsetWidth;btn.classList.add('spinning');var jump=1+Math.floor(Math.random()*(SAILING_RULES.length-1));S.digestOffset=((S.digestOffset||0)+jump)%SAILING_RULES.length;saveState();render();})(this)">🎲</button>
           </div>
         </div>
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
@@ -2309,7 +2371,7 @@ function render(){
           <span style="font-size:15px;font-weight:700;color:var(--txt);">${rule.t}</span>
         </div>
         <div style="font-size:13px;color:var(--txt2);line-height:1.6;">${rule.s}</div>
-        <div style="margin-top:10px;font-size:11px;color:var(--txt3);">${idx+1} of ${SAILING_RULES.length} · resets daily</div>
+        <div style="margin-top:10px;font-size:11px;color:var(--txt3);">${idx+1} of ${SAILING_RULES.length} · tap 🎲 to shuffle</div>
       </div>`;
     })()}
 
@@ -2625,17 +2687,34 @@ fetchResults();
 (function(){
   let startX = 0;
   let startY = 0;
+  let swipeLockedToScroller = false; // true when touch started inside a horizontal scroller
 
-  const MAIN_TABS  = ['home','race','calendar','courses','results','weather','resources'];
-  const RACE_TABS  = ['competitors','race','results','flags'];
+  const MAIN_TABS = ['home','race','calendar','courses','results','weather','resources'];
+  const RACE_TABS = ['competitors','race','results','flags'];
 
-  document.addEventListener("touchstart", (e)=>{
+  // Walk up the DOM from `el`; return true if any ancestor scrolls horizontally
+  // and actually has overflow content (i.e. is a real scrollable, not just overflow:auto with no overflow).
+  function insideHorizScroller(el){
+    while(el && el !== document.body){
+      const style = window.getComputedStyle(el);
+      const ox = style.overflowX;
+      if((ox === 'auto' || ox === 'scroll') && el.scrollWidth > el.clientWidth + 2){
+        return true;
+      }
+      el = el.parentElement;
+    }
+    return false;
+  }
+
+  document.addEventListener('touchstart', (e)=>{
     const t = e.touches[0];
     startX = t.clientX;
     startY = t.clientY;
+    // Record at touch-down whether we're inside a native horizontal scroller
+    swipeLockedToScroller = insideHorizScroller(e.target);
   }, {passive:true});
 
-  document.addEventListener("touchend", (e)=>{
+  document.addEventListener('touchend', (e)=>{
     const t = e.changedTouches[0];
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
@@ -2644,8 +2723,12 @@ fetchResults();
     if(Math.abs(dy) > Math.abs(dx)) return;
     if(Math.abs(dx) < 50) return;
 
-    // If we're inside the Race section, swipe the race sub-tabs
-    // and do NOT also flip the main tab.
+    // If the swipe began inside a horizontally-scrollable element
+    // (e.g. the sub-tabs bar or a results table), let the browser
+    // handle it natively — do NOT trigger any tab change.
+    if(swipeLockedToScroller) return;
+
+    // Race section: swipe navigates race sub-tabs only
     if(S.mainTab === 'race'){
       const raceIdx = RACE_TABS.indexOf(S.raceTab);
       if(raceIdx === -1) return;
@@ -2654,7 +2737,22 @@ fetchResults();
       } else if(dx > 0 && raceIdx > 0){
         setRaceTab(RACE_TABS[raceIdx - 1]);
       }
-      return; // consumed — don't fall through to main-tab swipe
+      return;
+    }
+
+    // Results section: swipe navigates result categories
+    if(S.mainTab === 'results' && S.resultsData){
+      const cats = (S.resultsData.categories||[]).filter(c=>c.results&&c.results.length>0);
+      if(cats.length > 1){
+        const catIdx = cats.findIndex(c=>c.id===S.resultsTab);
+        if(catIdx === -1) return;
+        if(dx < 0 && catIdx < cats.length - 1){
+          setResultsTab(cats[catIdx + 1].id);
+        } else if(dx > 0 && catIdx > 0){
+          setResultsTab(cats[catIdx - 1].id);
+        }
+        return;
+      }
     }
 
     // All other main tabs: swipe between them
