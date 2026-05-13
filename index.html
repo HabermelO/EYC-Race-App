@@ -2213,19 +2213,22 @@ function render(){
     return `
 
     <!-- ══ HERO: CONDITIONS NOW ══════════════════════════════════════════════ -->
-    <div onclick="setMain('weather')" style="background:linear-gradient(140deg,#0e3a5c 0%,#185fa5 100%);border-radius:16px;padding:22px 20px 18px;color:#fff;position:relative;overflow:hidden;cursor:pointer;">
+    <div onclick="setMain('weather')" style="background:linear-gradient(140deg,#0e3a5c 0%,#185fa5 100%);border-radius:16px;padding:14px 18px 12px;color:#fff;position:relative;overflow:hidden;cursor:pointer;">
       <div style="position:absolute;top:-30px;right:-20px;width:130px;height:130px;background:rgba(255,255,255,.05);border-radius:50%;pointer-events:none;"></div>
       <div style="position:absolute;bottom:-40px;left:-10px;width:100px;height:100px;background:rgba(255,255,255,.04);border-radius:50%;pointer-events:none;"></div>
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.65;margin-bottom:14px;">Conditions Now · Chalkwell</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.65;">Conditions Now · Chalkwell</div>
+        <div style="font-size:12px;opacity:.5;">Full forecast ›</div>
+      </div>
       ${displayWx?`
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-        <div style="font-size:62px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25));">${wxIcon(displayWx.code)}</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <div style="font-size:50px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25));">${wxIcon(displayWx.code)}</div>
         <div style="flex:1;">
           <div style="font-size:26px;font-weight:800;line-height:1.1;letter-spacing:-.5px;">${wxDesc(displayWx.code)}</div>
           ${displayWx.temp!=null?`<div style="font-size:17px;opacity:.75;margin-top:4px;">${displayWx.temp}°C</div>`:''}
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0;">
         <div style="background:rgba(255,255,255,.13);border-radius:12px;padding:12px 14px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">${svgWindIcon}<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.7;">Wind</div></div>
           <div style="font-size:28px;font-weight:900;line-height:1;letter-spacing:-1px;">${displayWx.kn}<span style="font-size:14px;font-weight:500;opacity:.7;">kn</span></div>
@@ -2252,35 +2255,37 @@ function render(){
             :d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
         })()}</span>
       </div>`:''}
-      <div style="margin-top:${S.wxStale?'8':'14'}px;font-size:12px;opacity:.5;text-align:right;">Full forecast ›</div>
     </div>
 
     <!-- ══ TIDE PROGRESS CARD ═════════════════════════════════════════════════ -->
     ${todayTides.all.length>0?`
-    <div class="card" style="padding:20px;background:var(--bg2);">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:14px;">Tidal State Now</div>
+    <div class="card" style="padding:14px 16px;background:var(--bg2);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);">Tidal State Now</span>
+        ${nextTide?`<span style="font-size:12px;font-weight:700;color:${nextTide.h>=3?'var(--blue-txt)':'var(--amber-txt)'};"><span style="opacity:.6;font-weight:500;">${nextTide.h>=3?'Next HW':'Next LW'}</span> ${nextTide.t} <span style="opacity:.6;">${nextTide.h}m</span></span>`:''}
+      </div>
       ${(prevTide||nextTide)?`
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--txt3);margin-bottom:3px;">${prevTide?(prevTide.h>=3?'▲ HW':'▼ LW'):'—'}</div>
-          <div style="font-size:18px;font-weight:800;color:var(--txt);">${prevTide?prevTide.t:'—'}</div>
-          <div style="font-size:12px;color:var(--txt3);">${prevTide?prevTide.h+'m':''}</div>
+          <div style="font-size:10px;color:var(--txt3);margin-bottom:2px;">${prevTide?(prevTide.h>=3?'▲ HW':'▼ LW'):'—'}</div>
+          <div style="font-size:15px;font-weight:800;color:var(--txt);">${prevTide?prevTide.t:'—'}</div>
+          <div style="font-size:11px;color:var(--txt3);">${prevTide?prevTide.h+'m':''}</div>
         </div>
         <div style="flex:1;margin:0 12px;">
-          <div style="text-align:center;margin-bottom:6px;">
-            <span style="font-size:15px;font-weight:700;color:${isRising?'var(--blue-txt)':'var(--amber-txt)'};">${isRising?'↑ Rising':'↓ Falling'}</span>
+          <div style="text-align:center;margin-bottom:4px;">
+            <span style="font-size:13px;font-weight:700;color:${isRising?'var(--blue-txt)':'var(--amber-txt)'};">${isRising?'↑ Rising':'↓ Falling'}</span>
           </div>
-          <div style="background:var(--border);border-radius:99px;height:8px;overflow:hidden;">
+          <div style="background:var(--border);border-radius:99px;height:6px;overflow:hidden;">
             <div style="height:100%;border-radius:99px;width:${progress!=null?Math.round(progress*100):50}%;background:${isRising?'linear-gradient(90deg,var(--blue-bg),var(--blue-txt))':'linear-gradient(90deg,var(--blue-txt),var(--amber-txt))'}; transition:width .3s;"></div>
           </div>
-          <div style="text-align:center;margin-top:6px;font-size:12px;color:var(--txt3);">
+          <div style="text-align:center;margin-top:4px;font-size:11px;color:var(--txt3);">
             ${nextTide&&minsToNext!=null?fmtDur(minsToNext)+' to next tide':''}
           </div>
         </div>
         <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--txt3);margin-bottom:3px;">${nextTide?(nextTide.h>=3?'▲ HW':'▼ LW'):'—'}</div>
-          <div style="font-size:18px;font-weight:800;color:${nextTide&&nextTide.h>=3?'var(--blue-txt)':'var(--amber-txt)'};">${nextTide?nextTide.t:'—'}</div>
-          <div style="font-size:12px;color:var(--txt3);">${nextTide?nextTide.h+'m':''}</div>
+          <div style="font-size:10px;color:var(--txt3);margin-bottom:2px;">${nextTide?(nextTide.h>=3?'▲ HW':'▼ LW'):'—'}</div>
+          <div style="font-size:15px;font-weight:800;color:${nextTide&&nextTide.h>=3?'var(--blue-txt)':'var(--amber-txt)'};">${nextTide?nextTide.t:'—'}</div>
+          <div style="font-size:11px;color:var(--txt3);">${nextTide?nextTide.h+'m':''}</div>
         </div>
       </div>
       `:'<div style="color:var(--txt3);font-size:13px;">No tide data available</div>'}
