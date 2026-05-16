@@ -1,5 +1,5 @@
 {
-  "updated": "2026-05-16T12:49:48.095297+00:00",
+  "updated": "2026-05-16T18:43:46.280930+00:00",
   "year": "2026",
   "categories": [
     {
@@ -33,6 +33,18 @@
       "emoji": "\ud83c\udfc6",
       "results": [
         {
+          "name": "B Fleet Evening Series",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Evening%20Series%202026.htm",
+          "filename": "B%20Fleet%20Evening%20Series%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "B Fleet Fast and Furious",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Fast%20and%20Furious%202026.htm",
+          "filename": "B%20Fleet%20Fast%20and%20Furious%202026.htm",
+          "category": "trophy"
+        },
+        {
           "name": "B Fleet May Bank Holiday",
           "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20May%20Bank%20Holiday%202026.htm",
           "filename": "B%20Fleet%20May%20Bank%20Holiday%202026.htm",
@@ -59,5 +71,5 @@
       ]
     }
   ],
-  "total": 5
+  "total": 7
 }
