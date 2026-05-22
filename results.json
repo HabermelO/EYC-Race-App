@@ -1,5 +1,5 @@
 {
-  "updated": "2026-05-22T14:06:22.332635+00:00",
+  "updated": "2026-05-22T19:18:34.411511+00:00",
   "year": "2026",
   "categories": [
     {
@@ -17,6 +17,12 @@
           "name": "EOD Forward Hands Trophy",
           "url": "https://www.essexyachtclub.co.uk/results/EOD%20Forward%20Hands%20Trophy%202026.htm",
           "filename": "EOD%20Forward%20Hands%20Trophy%202026.htm",
+          "category": "eod"
+        },
+        {
+          "name": "Simon Turmaine",
+          "url": "https://www.essexyachtclub.co.uk/results/Simon%20Turmaine%202026.htm",
+          "filename": "Simon%20Turmaine%202026.htm",
           "category": "eod"
         }
       ]
@@ -63,6 +69,12 @@
           "category": "trophy"
         },
         {
+          "name": "John Swann Trophy",
+          "url": "https://www.essexyachtclub.co.uk/results/John%20Swann%20Trophy%202026.htm",
+          "filename": "John%20Swann%20Trophy%202026.htm",
+          "category": "trophy"
+        },
+        {
           "name": "Tony Moore Memorial Trophy",
           "url": "https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm",
           "filename": "Tony%20Moore%20Memorial%20Trophy%202026.htm",
@@ -71,5 +83,5 @@
       ]
     }
   ],
-  "total": 7
+  "total": 9
 }
