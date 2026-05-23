@@ -1531,25 +1531,30 @@ const RESULT_CATEGORIES = [
     id: 'bfleet',
     label: 'B Fleet',
     emoji: '🏁',
-    // Matches B Fleet series results (spring, summer, autumn, bank holiday etc.)
-    // Explicitly NOT trophy races — those are caught by the trophy bucket below
-    keywords: ['b fleet','bfleet','b-fleet','spring series','summer series','autumn series','bank holiday','may series','june series','july series','august series','september series','october series'],
-    // Keywords that must NOT appear (to avoid false positives like "B Fleet Trophy")
+    keywords: ['b fleet','bfleet','b-fleet','spring series','summer series','autumn series',
+               'bank holiday','evening series','fast and furious',
+               'may series','june series','july series','august series','september series','october series'],
     exclude: ['trophy','cup','tin mug','tin-mug']
   },
   {
     id: 'eod',
     label: 'EOD',
     emoji: '⛵',
-    keywords: ['eod','end of day','tony moore','ian perkins','edwards casket','turmaine','mini shoreline','peter cotgrove','velsheda','symons cup','interclub dinghy','forward hands','forwardhands','ladies in eod','eod fun'],
+    // Named results that always route here regardless of other keywords (e.g. trophy races sailed by EODs)
+    overrides: ['john swann','tony moore','simon turmaine','turmaine','ian perkins',
+                'peter cotgrove','forward hands','forwardhands','eod single handed',
+                'eod championship','eod velsheda','velsheda','estuary championship',
+                'edwards casket','symons cup','interclub dinghy'],
+    keywords: ['eod','end of day','mini shoreline','ladies in eod','eod fun'],
     exclude: []
   },
   {
     id: 'trophy',
     label: 'Trophies',
     emoji: '🏆',
-    // Named trophies and one-off championship events
-    keywords: ['trophy','cup','tin mug','tin-mug','championship','championships','open meeting','pursuit','harty ferry','breakfast race','cruiser'],
+    keywords: ['trophy','cup','tin mug','tin-mug','championship','open meeting',
+               'pursuit','harty ferry','breakfast race'],
+    overrides: [],
     exclude: []
   }
 ];
@@ -1572,13 +1577,12 @@ function categoriseResults(data){
     const hay = ((r.name||'')+'|'+(r.filename||'')+'|'+(r.url||'')).toLowerCase();
     let placed = false;
     for(const cat of built){
+      // Overrides always win — named results routed here regardless of other keywords
+      const overridden = (cat.overrides||[]).some(kw=>hay.includes(kw));
+      if(overridden){ cat.results.push(r); placed=true; break; }
       const hits = cat.keywords.some(kw=>hay.includes(kw));
       const excluded = cat.exclude.some(kw=>hay.includes(kw));
-      if(hits && !excluded){
-        cat.results.push(r);
-        placed = true;
-        break;
-      }
+      if(hits && !excluded){ cat.results.push(r); placed=true; break; }
     }
     if(!placed) unmatched.results.push(r);
   });
