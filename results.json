@@ -1,5 +1,5 @@
 {
-  "updated": "2026-05-31T08:30:48.897805+00:00",
+  "updated": "2026-05-31T13:04:37.095711+00:00",
   "year": "2026",
   "categories": [
     {
@@ -75,6 +75,12 @@
           "category": "trophy"
         },
         {
+          "name": "Laser Championships",
+          "url": "https://www.essexyachtclub.co.uk/results/Laser%20Championships%202026.htm",
+          "filename": "Laser%20Championships%202026.htm",
+          "category": "trophy"
+        },
+        {
           "name": "Tony Moore Memorial Trophy",
           "url": "https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm",
           "filename": "Tony%20Moore%20Memorial%20Trophy%202026.htm",
@@ -83,5 +89,5 @@
       ]
     }
   ],
-  "total": 9
+  "total": 10
 }
