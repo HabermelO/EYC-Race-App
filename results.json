@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-14T08:57:11.538690+00:00",
+  "updated": "2026-06-14T13:20:56.017132+00:00",
   "year": "2026",
   "categories": [
     {
@@ -51,6 +51,12 @@
           "category": "trophy"
         },
         {
+          "name": "B Fleet Flower Race",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Flower%20Race%202026.htm",
+          "filename": "B%20Fleet%20Flower%20Race%202026.htm",
+          "category": "trophy"
+        },
+        {
           "name": "B Fleet May Bank Holiday",
           "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20May%20Bank%20Holiday%202026.htm",
           "filename": "B%20Fleet%20May%20Bank%20Holiday%202026.htm",
@@ -89,5 +95,5 @@
       ]
     }
   ],
-  "total": 10
+  "total": 11
 }
