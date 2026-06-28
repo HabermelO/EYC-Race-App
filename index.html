@@ -1165,13 +1165,13 @@ function fmtRYATime(ms){
 // ─────────────────────────────────────────────────────────────────────────────
 // ACTIONS
 // ─────────────────────────────────────────────────────────────────────────────
-window.setMain=t=>{S.mainTab=t;saveState();if(t==='weather'||t==='home')fetchWeather();else if(t==='results'){if(!S.resultsLoaded)fetchResults();else render();}else{if(t==='calendar'&&navigator.onLine&&(!S.wxData||Date.now()-S.wxFetched>1800000))fetchWeather();render();}};
+window.setMain=t=>{S.mainTab=t;saveState();if(t==='weather'||t==='home')fetchWeather();else if(t==='results'){if(!S.resultsLoaded)fetchResults();else render();}else{if(t==='calendar'&&navigator.onLine&&(!S.wxData||Date.now()-S.wxFetched>1800000))fetchWeather();render();}if(t==='calendar')requestAnimationFrame(scrollToNextCalEvent);};
 window.setResultsTab=t=>{S.resultsTab=t;saveState();if(!S.resultsLoaded)fetchResults();else render();};
 window.setBfleetTab=t=>{S.bfleetTab=t;saveState();render()};
 window.setEodTab=t=>{S.eodTab=t;saveState();render();};
 window.setActiveResult=(cat,url)=>{if(!S.activeResult)S.activeResult={};S.activeResult[cat]=url;render();};
 window.setRaceTab=t=>{S.raceTab=t;saveState();render();};
-window.setFilter=f=>{S.calFilter=f;saveState();render();};
+window.setFilter=f=>{S.calFilter=f;saveState();render();requestAnimationFrame(scrollToNextCalEvent);};
 window.toggleCal=d=>{
   S.calExpanded[d]=!S.calExpanded[d];
   const panel=document.getElementById('cal-panel-'+d);
@@ -2452,7 +2452,7 @@ function render(){
       } else if(r.d>=todayStr){
         wxPanel=`<div style="padding:10px 14px;font-size:12px;color:var(--txt3);border-top:.5px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:space-between;"><span>&#127966; Forecast not yet loaded</span><button onclick="event.stopPropagation();fetchWeather().then(render)" style="font-size:11px;padding:3px 10px;border-radius:99px;background:var(--blue-bg);color:var(--blue-txt);border:.5px solid var(--blue-bd);">Load &#8635;</button></div>`;
       }
-      return`<div style="border:.5px solid ${isToday?'var(--green-bd)':isSoon?'var(--amber-bd)':'var(--border)'};border-radius:var(--radius);background:${isToday?'var(--green-bg)':isSoon?'var(--amber-bg)':'var(--bg)'};overflow:hidden;margin-bottom:5px;${isPast?'opacity:.6;':''}">
+      return`<div data-cal-row="${r.d}" style="border:.5px solid ${isToday?'var(--green-bd)':isSoon?'var(--amber-bd)':'var(--border)'};border-radius:var(--radius);background:${isToday?'var(--green-bg)':isSoon?'var(--amber-bg)':'var(--bg)'};overflow:hidden;margin-bottom:5px;${isPast?'opacity:.6;':''}">
         <div onclick="toggleCal('${r.d}')" style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
           <div style="text-align:center;background:var(--bg2);border-radius:var(--radius);padding:6px 10px;min-width:50px;flex-shrink:0;">
             <div style="font-size:10px;color:var(--txt2);text-transform:uppercase;">${dt.toLocaleDateString('en-GB',{weekday:'short'})}</div>
@@ -2686,6 +2686,19 @@ function render(){
   // Set textarea values via DOM — more reliable on mobile than innerHTML injection
   const notesTA=document.querySelector('textarea[oninput="onNotes(this.value)"]');
   if(notesTA&&notesTA.value!==S.raceNotes)notesTA.value=S.raceNotes;
+}
+
+// Scroll the calendar to the first upcoming event (today or later).
+// Called on filter/tab changes only — not on background periodic refreshes.
+function scrollToNextCalEvent(){
+  const todayStr=new Date().toISOString().slice(0,10);
+  const rows=document.querySelectorAll('[data-cal-row]');
+  for(const row of rows){
+    if(row.dataset.calRow>=todayStr){
+      row.scrollIntoView({behavior:'smooth',block:'start'});
+      break;
+    }
+  }
 }
 
 render();
