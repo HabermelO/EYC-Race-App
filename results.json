@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-28T08:36:01.235253+00:00",
+  "updated": "2026-06-28T13:05:53.376246+00:00",
   "year": "2026",
   "categories": [
     {
@@ -93,6 +93,12 @@
           "category": "trophy"
         },
         {
+          "name": "River Race",
+          "url": "https://www.essexyachtclub.co.uk/results/River%20Race%202026.htm",
+          "filename": "River%20Race%202026.htm",
+          "category": "trophy"
+        },
+        {
           "name": "Tony Moore Memorial Trophy",
           "url": "https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm",
           "filename": "Tony%20Moore%20Memorial%20Trophy%202026.htm",
@@ -101,5 +107,5 @@
       ]
     }
   ],
-  "total": 12
+  "total": 13
 }
