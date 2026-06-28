@@ -1,5 +1,105 @@
 {
-  "updated": "2026-06-27T18:57:55.263478+00:00",
-  "error": "<urlopen error timed out>",
-  "categories": []
+  "updated": "2026-06-28T01:59:24.980905+00:00",
+  "year": "2026",
+  "categories": [
+    {
+      "id": "bfleet",
+      "label": "B Fleet",
+      "emoji": "\u26f5",
+      "results": []
+    },
+    {
+      "id": "eod",
+      "label": "EOD",
+      "emoji": "\ud83d\udea4",
+      "results": [
+        {
+          "name": "EOD Forward Hands Trophy",
+          "url": "https://www.essexyachtclub.co.uk/results/EOD%20Forward%20Hands%20Trophy%202026.htm",
+          "filename": "EOD%20Forward%20Hands%20Trophy%202026.htm",
+          "category": "eod"
+        },
+        {
+          "name": "Simon Turmaine",
+          "url": "https://www.essexyachtclub.co.uk/results/Simon%20Turmaine%202026.htm",
+          "filename": "Simon%20Turmaine%202026.htm",
+          "category": "eod"
+        }
+      ]
+    },
+    {
+      "id": "cruiser",
+      "label": "Cruiser",
+      "emoji": "\u2693",
+      "results": []
+    },
+    {
+      "id": "trophy",
+      "label": "Trophy Races",
+      "emoji": "\ud83c\udfc6",
+      "results": [
+        {
+          "name": "B Fleet Evening Series",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Evening%20Series%202026.htm",
+          "filename": "B%20Fleet%20Evening%20Series%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "B Fleet Fast and Furious",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Fast%20and%20Furious%202026.htm",
+          "filename": "B%20Fleet%20Fast%20and%20Furious%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "B Fleet Flower Race",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Flower%20Race%202026.htm",
+          "filename": "B%20Fleet%20Flower%20Race%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "B Fleet May Bank Holiday",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20May%20Bank%20Holiday%202026.htm",
+          "filename": "B%20Fleet%20May%20Bank%20Holiday%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "B Fleet Spring Series",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Spring%20Series%202026.htm",
+          "filename": "B%20Fleet%20Spring%20Series%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "Easter Tin Mug",
+          "url": "https://www.essexyachtclub.co.uk/results/Easter%20Tin%20Mug%202026.htm",
+          "filename": "Easter%20Tin%20Mug%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "John Swann Trophy",
+          "url": "https://www.essexyachtclub.co.uk/results/John%20Swann%20Trophy%202026.htm",
+          "filename": "John%20Swann%20Trophy%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "Laser Championships",
+          "url": "https://www.essexyachtclub.co.uk/results/Laser%20Championships%202026.htm",
+          "filename": "Laser%20Championships%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "Mid Week Regatta",
+          "url": "https://www.essexyachtclub.co.uk/results/Mid%20Week%20Regatta%202026.htm",
+          "filename": "Mid%20Week%20Regatta%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "Tony Moore Memorial Trophy",
+          "url": "https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm",
+          "filename": "Tony%20Moore%20Memorial%20Trophy%202026.htm",
+          "category": "trophy"
+        }
+      ]
+    }
+  ],
+  "total": 12
 }
