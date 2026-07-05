@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-05T12:59:09.663426+00:00",
+  "updated": "2026-07-05T18:53:25.641351+00:00",
   "year": "2026",
   "categories": [
     {
@@ -93,6 +93,12 @@
           "category": "trophy"
         },
         {
+          "name": "Pursuit Race",
+          "url": "https://www.essexyachtclub.co.uk/results/Pursuit%20Race%202026.htm",
+          "filename": "Pursuit%20Race%202026.htm",
+          "category": "trophy"
+        },
+        {
           "name": "River Race",
           "url": "https://www.essexyachtclub.co.uk/results/River%20Race%202026.htm",
           "filename": "River%20Race%202026.htm",
@@ -107,5 +113,5 @@
       ]
     }
   ],
-  "total": 13
+  "total": 14
 }
