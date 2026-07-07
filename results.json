@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-07T13:57:44.052442+00:00",
+  "updated": "2026-07-07T19:27:55.523892+00:00",
   "year": "2026",
   "categories": [
     {
@@ -14,9 +14,21 @@
       "emoji": "\ud83d\udea4",
       "results": [
         {
+          "name": "EOD Championship Trophy",
+          "url": "https://www.essexyachtclub.co.uk/results/EOD%20Championship%20Trophy%202026.htm",
+          "filename": "EOD%20Championship%20Trophy%202026.htm",
+          "category": "eod"
+        },
+        {
           "name": "EOD Forward Hands Trophy",
           "url": "https://www.essexyachtclub.co.uk/results/EOD%20Forward%20Hands%20Trophy%202026.htm",
           "filename": "EOD%20Forward%20Hands%20Trophy%202026.htm",
+          "category": "eod"
+        },
+        {
+          "name": "EOD Saturday Points",
+          "url": "https://www.essexyachtclub.co.uk/results/EOD%20Saturday%20Points%202026.htm",
+          "filename": "EOD%20Saturday%20Points%202026.htm",
           "category": "eod"
         },
         {
@@ -113,5 +125,5 @@
       ]
     }
   ],
-  "total": 14
+  "total": 16
 }
