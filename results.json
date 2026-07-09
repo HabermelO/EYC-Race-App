@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-09T14:20:00.508397+00:00",
+  "updated": "2026-07-09T19:15:00.033775+00:00",
   "year": "2026",
   "categories": [
     {
@@ -81,6 +81,12 @@
           "category": "trophy"
         },
         {
+          "name": "B Fleet Summer",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Summer%202026.htm",
+          "filename": "B%20Fleet%20Summer%202026.htm",
+          "category": "trophy"
+        },
+        {
           "name": "Easter Tin Mug",
           "url": "https://www.essexyachtclub.co.uk/results/Easter%20Tin%20Mug%202026.htm",
           "filename": "Easter%20Tin%20Mug%202026.htm",
@@ -125,5 +131,5 @@
       ]
     }
   ],
-  "total": 16
+  "total": 17
 }
