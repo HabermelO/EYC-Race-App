@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-19T07:52:09.173345+00:00",
+  "updated": "2026-07-19T12:42:05.312881+00:00",
   "year": "2026",
   "categories": [
     {
@@ -35,6 +35,12 @@
           "name": "Simon Turmaine",
           "url": "https://www.essexyachtclub.co.uk/results/Simon%20Turmaine%202026.htm",
           "filename": "Simon%20Turmaine%202026.htm",
+          "category": "eod"
+        },
+        {
+          "name": "Velsheda Trophy",
+          "url": "https://www.essexyachtclub.co.uk/results/Velsheda%20Trophy%202026.htm",
+          "filename": "Velsheda%20Trophy%202026.htm",
           "category": "eod"
         }
       ]
@@ -137,5 +143,5 @@
       ]
     }
   ],
-  "total": 18
+  "total": 19
 }
