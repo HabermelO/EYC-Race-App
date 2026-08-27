@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-27T05:10:13.946653+00:00",
+  "updated": "2026-08-27T16:52:18.598182+00:00",
   "year": "2026",
   "categories": [
     {
@@ -157,9 +157,15 @@
           "url": "https://www.essexyachtclub.co.uk/results/Tony%20Moore%20Memorial%20Trophy%202026.htm",
           "filename": "Tony%20Moore%20Memorial%20Trophy%202026.htm",
           "category": "trophy"
+        },
+        {
+          "name": "cadet_week_ _oppies",
+          "url": "https://www.essexyachtclub.co.uk/results/cadet_week_2026_oppies.htm",
+          "filename": "cadet_week_2026_oppies.htm",
+          "category": "trophy"
         }
       ]
     }
   ],
-  "total": 22
+  "total": 23
 }
