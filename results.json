@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-31T01:43:23.109562+00:00",
+  "updated": "2026-08-31T11:53:33.964860+00:00",
   "year": "2026",
   "categories": [
     {
@@ -29,6 +29,12 @@
           "name": "EOD Saturday Points",
           "url": "https://www.essexyachtclub.co.uk/results/EOD%20Saturday%20Points%202026.htm",
           "filename": "EOD%20Saturday%20Points%202026.htm",
+          "category": "eod"
+        },
+        {
+          "name": "Estuary One Design Championships",
+          "url": "https://www.essexyachtclub.co.uk/results/Estuary%20One%20Design%20Championships%202026.htm",
+          "filename": "Estuary%20One%20Design%20Championships%202026.htm",
           "category": "eod"
         },
         {
@@ -167,5 +173,5 @@
       ]
     }
   ],
-  "total": 23
+  "total": 24
 }
