@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-04T15:10:36.605301+00:00",
+  "updated": "2026-09-04T19:55:49.439397+00:00",
   "year": "2026",
   "categories": [
     {
@@ -84,6 +84,12 @@
           "name": "B Fleet Championship",
           "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Championship%202026.htm",
           "filename": "B%20Fleet%20Championship%202026.htm",
+          "category": "trophy"
+        },
+        {
+          "name": "B Fleet Cocktail Race",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Cocktail%20Race%202026.htm",
+          "filename": "B%20Fleet%20Cocktail%20Race%202026.htm",
           "category": "trophy"
         },
         {
@@ -173,5 +179,5 @@
       ]
     }
   ],
-  "total": 24
+  "total": 25
 }
