@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-26T10:19:54.315103+00:00",
+  "updated": "2026-09-26T15:09:31.171528+00:00",
   "year": "2026",
   "categories": [
     {
@@ -153,6 +153,12 @@
           "category": "trophy"
         },
         {
+          "name": "Peter Cotgrove",
+          "url": "https://www.essexyachtclub.co.uk/results/Peter%20Cotgrove%202026.htm",
+          "filename": "Peter%20Cotgrove%202026.htm",
+          "category": "trophy"
+        },
+        {
           "name": "Pursuit Race",
           "url": "https://www.essexyachtclub.co.uk/results/Pursuit%20Race%202026.htm",
           "filename": "Pursuit%20Race%202026.htm",
@@ -179,5 +185,5 @@
       ]
     }
   ],
-  "total": 25
+  "total": 26
 }
