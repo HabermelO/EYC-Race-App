@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-11T11:38:44.605935+00:00",
+  "updated": "2026-10-11T16:48:36.348891+00:00",
   "year": "2026",
   "categories": [
     {
@@ -74,6 +74,12 @@
       "label": "Trophy Races",
       "emoji": "\ud83c\udfc6",
       "results": [
+        {
+          "name": "B Fleet Autumnn",
+          "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Autumnn%202026.htm",
+          "filename": "B%20Fleet%20Autumnn%202026.htm",
+          "category": "trophy"
+        },
         {
           "name": "B Fleet Breakfast Race",
           "url": "https://www.essexyachtclub.co.uk/results/B%20Fleet%20Breakfast%20Race%202026.htm",
@@ -185,5 +191,5 @@
       ]
     }
   ],
-  "total": 26
+  "total": 27
 }
